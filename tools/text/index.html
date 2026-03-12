@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Text</h1>
+      <div class="control-group">
+        <label>Text Source</label>
+        <select id="text-source">
+          <option value="custom">Custom Text</option>
+          <option value="lorem">Lorem Ipsum</option>
+          <option value="binary">Binary</option>
+          <option value="hex">Hex Dump</option>
+          <option value="alphabet">Alphabet</option>
+        </select>
+      </div>
+      <div class="control-group" id="custom-text-group">
+        <textarea id="custom-text" rows="3" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 8px;resize:vertical;outline:none;">Hello World</textarea>
+      </div>
+      <hr class="separator">
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Colors</label>
+        <div class="color-swatch-row" id="color-swatches"></div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Font Size</label>
+        <div class="range-row">
+          <input type="range" id="font-size" min="4" max="120" value="16">
+          <span class="range-value" data-for="font-size">16</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Saturation</label>
+        <div class="range-row">
+          <input type="range" id="saturation" min="-100" max="100" value="0">
+          <span class="range-value" data-for="saturation">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Effects</label>
+        <div class="btn-row">
+          <button class="btn" id="btn-glitch" data-active="false">Glitch</button>
+          <button class="btn" id="btn-colorize" data-active="false">Colorize</button>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="text.js"></script>
+</body>
+</html>
