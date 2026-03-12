@@ -305,9 +305,10 @@ onChange(() => {
 }));
 
 // Buttons
-document.getElementById('btn-fullscreen').addEventListener('click', () => {
-  app.classList.toggle('fullscreen');
-});
+function toggleFullscreen() { app.classList.toggle('fullscreen'); }
+document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscreen);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
 
 document.getElementById('btn-save').addEventListener('click', () => {
   const link = document.createElement('a');
