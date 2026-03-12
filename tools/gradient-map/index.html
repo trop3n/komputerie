@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gradient Map</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">← Tools</a>
+      <h1>Gradient Map</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Gradient Colors</label>
+        <div class="color-swatch-row" id="color-swatches"></div>
+      </div>
+      <div class="control-group">
+        <label>Preset</label>
+        <select id="preset">
+          <option value="custom">Custom</option>
+          <option value="duotone-blue">Duotone Blue</option>
+          <option value="duotone-orange">Duotone Orange</option>
+          <option value="tritone-sunset">Tritone Sunset</option>
+          <option value="cyberpunk">Cyberpunk</option>
+          <option value="infrared">Infrared</option>
+          <option value="sepia">Sepia</option>
+          <option value="cyanotype">Cyanotype</option>
+          <option value="heatmap">Heatmap</option>
+          <option value="neon-nights">Neon Nights</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Mix</label>
+        <div class="range-row">
+          <input type="range" id="mix" min="0" max="100" value="100">
+          <span class="range-value" data-for="mix">100</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+        <button class="btn" id="btn-randomize">Randomize</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+  <script type="module" src="gradient-map.js"></script>
+</body>
+</html>

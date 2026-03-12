@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cellular Automata</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">← Tools</a>
+      <h1>Cellular Automata</h1>
+      <div class="control-group">
+        <label>Rule</label>
+        <select id="rule">
+          <option value="game-of-life">Game of Life</option>
+          <option value="highlife">HighLife</option>
+          <option value="seeds">Seeds</option>
+          <option value="brian-brain">Brian's Brain</option>
+          <option value="day-night">Day & Night</option>
+          <option value="diamoeba">Diamoeba</option>
+          <option value="anneal">Anneal</option>
+          <option value="morley">Morley</option>
+          <option value="rule-30">Rule 30 (1D)</option>
+          <option value="rule-90">Rule 90 (1D)</option>
+          <option value="rule-110">Rule 110 (1D)</option>
+          <option value="perlin">Perlin Noise</option>
+          <option value="plasma">Plasma</option>
+          <option value="feedback">Feedback</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Size</label>
+        <select id="grid-size">
+          <option value="64">64</option>
+          <option value="128" selected>128</option>
+          <option value="256">256</option>
+          <option value="512">512</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Palette</label>
+        <select id="palette">
+          <option value="greyscale">Greyscale</option>
+          <option value="fire">Fire</option>
+          <option value="ocean">Ocean</option>
+          <option value="neon">Neon</option>
+          <option value="pastel">Pastel</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="cyberpunk">Cyberpunk</option>
+          <option value="earth">Earth</option>
+          <option value="ice">Ice</option>
+          <option value="acid">Acid</option>
+          <option value="sunset">Sunset</option>
+          <option value="binary">Binary</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="control-group" id="custom-colors-group" style="display:none">
+        <div class="color-swatch-row" id="color-swatches"></div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Brush</label>
+        <div class="radio-row">
+          <input type="radio" name="brush" id="brush-rect" value="rect" checked>
+          <label for="brush-rect">Rect</label>
+          <input type="radio" name="brush" id="brush-line" value="line">
+          <label for="brush-line">Line</label>
+          <input type="radio" name="brush" id="brush-spray" value="spray">
+          <label for="brush-spray">Spray</label>
+          <input type="radio" name="brush" id="brush-smooth" value="smooth">
+          <label for="brush-smooth">Smooth</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Brush Size</label>
+        <div class="range-row">
+          <input type="range" id="brush-size" min="1" max="32" value="4">
+          <span class="range-value" data-for="brush-size">4</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Speed (FPS)</label>
+        <div class="range-row">
+          <input type="range" id="fps" min="1" max="60" value="15">
+          <span class="range-value" data-for="fps">15</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Effects</label>
+        <div class="btn-row">
+          <button class="btn" data-effect="noise">Noise</button>
+          <button class="btn" data-effect="invert">Invert</button>
+          <button class="btn" data-effect="glitch">Glitch</button>
+          <button class="btn" data-effect="blur">Blur</button>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-generate">Generate</button>
+        <button class="btn" id="btn-clear">Clear</button>
+        <button class="btn" id="btn-pause">Pause</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+  <script type="module" src="cellular-automata.js"></script>
+</body>
+</html>

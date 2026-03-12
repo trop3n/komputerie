@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dithering</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">← Tools</a>
+      <h1>Dithering</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Algorithm</label>
+        <select id="algorithm">
+          <option value="ordered">Ordered (Bayer)</option>
+          <option value="floyd-steinberg">Floyd-Steinberg</option>
+          <option value="atkinson">Atkinson</option>
+          <option value="threshold">Threshold</option>
+          <option value="random">Random</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Dither Size</label>
+        <div class="range-row">
+          <input type="range" id="dither-size" min="1" max="16" value="4" step="1">
+          <span class="range-value" data-for="dither-size">4</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Levels</label>
+        <div class="range-row">
+          <input type="range" id="levels" min="2" max="16" value="4" step="1">
+          <span class="range-value" data-for="levels">4</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Colors</label>
+        <div class="color-swatch-row" id="color-swatches"></div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Blur</label>
+        <div class="range-row">
+          <input type="range" id="blur" min="0" max="10" value="0" step="0.5">
+          <span class="range-value" data-for="blur">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0" step="1">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0" step="1">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Saturation</label>
+        <div class="range-row">
+          <input type="range" id="saturation" min="-100" max="100" value="0" step="1">
+          <span class="range-value" data-for="saturation">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+        <button class="btn" id="btn-randomize">Randomize</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+  <script type="module" src="dithering.js"></script>
+</body>
+</html>
