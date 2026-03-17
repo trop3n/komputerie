@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flipdigits Player</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Flipdigits Player</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Columns</label>
+        <div class="range-row">
+          <input type="range" id="cols" min="4" max="80" value="28">
+          <span class="range-value" data-for="cols">28</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Rows</label>
+        <div class="range-row">
+          <input type="range" id="rows" min="4" max="60" value="14">
+          <span class="range-value" data-for="rows">14</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Flip Speed</label>
+        <div class="range-row">
+          <input type="range" id="flip-speed" min="1" max="20" value="8">
+          <span class="range-value" data-for="flip-speed">8</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Dot Style</label>
+        <select id="dot-style">
+          <option value="flip">Flip Dot</option>
+          <option value="round">Round</option>
+          <option value="square">Square</option>
+          <option value="led">LED</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Active Color</label>
+        <input type="color" id="active-color" value="#cccc00" style="width:100%;height:28px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;">
+      </div>
+      <div class="control-group">
+        <label>Threshold</label>
+        <div class="range-row">
+          <input type="range" id="threshold" min="0" max="255" value="128">
+          <span class="range-value" data-for="threshold">128</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="flipdigits.js"></script>
+</body>
+</html>

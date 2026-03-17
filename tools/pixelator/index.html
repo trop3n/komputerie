@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixelator</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Pixelator</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Pixel Size</label>
+        <div class="range-row">
+          <input type="range" id="pixel-size" min="2" max="64" value="8">
+          <span class="range-value" data-for="pixel-size">8</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Style</label>
+        <select id="style">
+          <option value="square">Square</option>
+          <option value="circle">Circle</option>
+          <option value="diamond">Diamond</option>
+          <option value="cross">Cross</option>
+          <option value="ascii">ASCII</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Saturation</label>
+        <div class="range-row">
+          <input type="range" id="saturation" min="-100" max="100" value="0">
+          <span class="range-value" data-for="saturation">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Outline</label>
+        <div class="range-row">
+          <input type="range" id="outline" min="0" max="4" value="0" step="0.5">
+          <span class="range-value" data-for="outline">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="pixelator.js"></script>
+</body>
+</html>

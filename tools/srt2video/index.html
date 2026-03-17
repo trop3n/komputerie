@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRT to Video</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>SRT to Video</h1>
+      <div class="control-group">
+        <label>SRT File</label>
+        <input type="file" id="srt-file" accept=".srt">
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Font Size</label>
+        <div class="range-row">
+          <input type="range" id="font-size" min="12" max="120" value="36">
+          <span class="range-value" data-for="font-size">36</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Font</label>
+        <select id="font-family">
+          <option value="monospace">Monospace</option>
+          <option value="sans-serif">Sans-serif</option>
+          <option value="serif">Serif</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="'Georgia', serif">Georgia</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Text Color</label>
+        <input type="color" id="text-color" value="#ffffff" style="width:100%;height:28px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;">
+      </div>
+      <div class="control-group">
+        <label>Background Color</label>
+        <input type="color" id="bg-color" value="#000000" style="width:100%;height:28px;background:var(--surface-2);border:1px solid var(--border);cursor:pointer;">
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Show Time Gaps</label>
+        <div class="radio-row">
+          <input type="radio" name="gaps" id="gaps-off" value="off" checked><label for="gaps-off">Off</label>
+          <input type="radio" name="gaps" id="gaps-on" value="on"><label for="gaps-on">On</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Playback</label>
+        <div class="btn-row">
+          <button class="btn" id="btn-play">Play</button>
+          <button class="btn" id="btn-pause">Pause</button>
+          <button class="btn" id="btn-restart">Restart</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Timeline</label>
+        <div class="range-row">
+          <input type="range" id="timeline" min="0" max="1000" value="0" step="1">
+          <span class="range-value" data-for="timeline" id="time-display">0:00</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="srt2video.js"></script>
+</body>
+</html>

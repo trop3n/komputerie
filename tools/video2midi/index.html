@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video to MIDI</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Video to MIDI</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Sample Points</label>
+        <select id="sample-points">
+          <option value="8">8</option>
+          <option value="16" selected>16</option>
+          <option value="32">32</option>
+          <option value="64">64</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>MIDI Channel</label>
+        <select id="midi-channel">
+          <option value="0">Channel 1</option>
+          <option value="1">Channel 2</option>
+          <option value="9">Channel 10 (Drums)</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Base Note</label>
+        <div class="range-row">
+          <input type="range" id="base-note" min="24" max="84" value="48">
+          <span class="range-value" data-for="base-note">48</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Note Range</label>
+        <div class="range-row">
+          <input type="range" id="note-range" min="12" max="48" value="24">
+          <span class="range-value" data-for="note-range">24</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Threshold</label>
+        <div class="range-row">
+          <input type="range" id="threshold" min="0" max="100" value="20">
+          <span class="range-value" data-for="threshold">20</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Scale</label>
+        <select id="scale">
+          <option value="chromatic">Chromatic</option>
+          <option value="major" selected>Major</option>
+          <option value="minor">Minor</option>
+          <option value="pentatonic">Pentatonic</option>
+          <option value="blues">Blues</option>
+          <option value="dorian">Dorian</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label id="midi-status">MIDI: Not connected</label>
+        <button class="btn" id="btn-connect-midi">Connect MIDI</button>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="video2midi.js"></script>
+</body>
+</html>
