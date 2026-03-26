@@ -22,28 +22,105 @@ There are no tests, linters, or build steps.
 
 ## Architecture
 
-**Tool layout pattern:** Every tool follows the same structure:
-- `tools/<name>/index.html` — page with sidebar controls + canvas area, uses shared CSS and loads its JS as `type="module"`
-- `tools/<name>/<name>.js` — all logic: imports `MediaSource`, wires up controls, runs a render/animation loop on a `<canvas>`
+### Tool Layout Pattern
 
-**Shared modules:**
-- `js/media-source.js` — `MediaSource` class and `createSourceSelector()` factory. Handles camera, screen capture, video file, and image input with a unified API (`.drawable`, `.ready`, `.width`, `.height`). Every tool that processes media imports this.
+Every tool follows the same two-file structure:
+- `tools/<name>/index.html` — sidebar controls + canvas area, loads JS as `type="module"`
+- `tools/<name>/<name>.js` — all logic in a single file
 
-**Shared styles:**
-- `css/style.css` — single stylesheet for all tools. Defines CSS variables (`--bg`, `--surface`, `--border`, `--text`, `--mono`, `--sans`), the sidebar/canvas layout (`.tool-layout`, `.tool-sidebar`, `.tool-canvas-area`), and all control components (`.control-group`, `.radio-row`, `.range-row`, `.btn`, `.color-swatch-row`). Dark theme, monospace aesthetic.
+Most tools import `MediaSource` from `js/media-source.js`. Standalone tools (cellular-automata, srt2video, flipdigits) manage their own state without external media input.
 
-**UI conventions:**
-- Sidebar on left (280px) with controls, canvas fills remaining space
-- Fullscreen toggle hides sidebar, shows an exit button on hover
-- Range inputs have a `.range-value` span linked via `data-for` attribute
-- Color palettes use editable swatches (click to change, right-click to remove, "+" to add)
-- Every tool has Save PNG and Fullscreen buttons
+### Shared Modules
 
-**Current tools:** dithering, cellular-automata, gradient-map, shapes, text, pixel-flow
+**`js/media-source.js`** — Unified media input API:
+- `MediaSource` class with properties: `.drawable` (HTMLVideoElement|HTMLImageElement), `.ready` (boolean), `.width`, `.height`, `.type` (`'camera'|'screen'|'video'|'image'`)
+- Async methods: `useCamera()`, `useScreen()`, `useVideo(file)`, `useImage(file)`, `stop()`
+- `createSourceSelector(container)` factory builds the full source UI (radio buttons + file input + default gradient sample). Returns `{ mediaSource, onChange(callback) }`
+
+### Shared Styles
+
+**`css/style.css`** — Single stylesheet for all tools.
+
+CSS variables (`:root`):
+- Colors: `--bg`, `--surface`, `--surface-2`, `--border`, `--text`, `--text-dim`, `--accent`
+- Typography: `--mono` (IBM Plex Mono), `--sans` (IBM Plex Sans)
+
+Layout classes:
+- `.tool-layout` — flex container, 100vh
+- `.tool-sidebar` — 280px fixed, scrollable
+- `.tool-canvas-area` — flex:1, black background, canvas uses `object-fit: contain` and `image-rendering: crisp-edges`
+
+Control components:
+- `.control-group` — label + input column
+- `.range-row` — range input + `.range-value` span (linked via `data-for` attribute)
+- `.radio-row` — horizontal radio buttons styled as toggle group
+- `.color-swatch-row` — flex-wrap color pickers (click=change, right-click=remove, "+"=add)
+- `.btn`, `.btn-row` — buttons and button groups
+- `.separator` — `<hr>` divider between control sections
+
+### UI Conventions
+
+- Sidebar on left with controls, canvas fills remaining space
+- Fullscreen toggle via `.tool-layout.fullscreen` class hides sidebar, exit button appears on hover
+- Every tool has Save PNG and Fullscreen buttons at bottom of sidebar
+- Back link (`← Tools`) at top of sidebar links to root index
+
+### Common JS Patterns
+
+**Initialization:**
+```javascript
+import { createSourceSelector } from '../../js/media-source.js';
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const app = document.getElementById('app');
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+```
+
+**Range value display** (universal across all tools):
+```javascript
+document.querySelectorAll('input[type="range"]').forEach(r => {
+  const span = document.querySelector(`.range-value[data-for="${r.id}"]`);
+  if (span) r.addEventListener('input', () => { span.textContent = r.value; render(); });
+});
+```
+
+**Render/animation loop** — image sources render once, video/camera/screen sources use `requestAnimationFrame`:
+```javascript
+function loop() {
+  if (mediaSource.type !== 'image' && mediaSource.ready) render();
+  animId = requestAnimationFrame(loop);
+}
+onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); });
+```
+
+**Fullscreen and Save PNG** are wired identically in every tool — toggle `app.classList` for fullscreen, `canvas.toDataURL('image/png')` for save.
+
+### Performance Patterns
+
+- **Offscreen canvas sampling**: Separate `sampCanvas`/`sampCtx` with `{ willReadFrequently: true }` for pixel reads
+- **Resolution scaling**: Input downscaled (e.g., max 480px), output upscaled to display size. Nearest-neighbor via `image-rendering: crisp-edges`
+- **Luminance formula**: `0.299 * r + 0.587 * g + 0.114 * b`
+- **Caching**: Expensive computations cached (Bayer matrices, parsed color palettes)
+
+## Current Tools (10)
+
+| Tool | Dir | Standalone |
+|------|-----|:----------:|
+| Dithering | `tools/dithering/` | |
+| Cellular Automata | `tools/cellular-automata/` | ✓ |
+| Gradient Map | `tools/gradient-map/` | |
+| Shapes | `tools/shapes/` | |
+| Text | `tools/text/` | |
+| Pixel Flow | `tools/pixel-flow/` | |
+| Pixelator | `tools/pixelator/` | |
+| SRT to Video | `tools/srt2video/` | ✓ |
+| Video to MIDI | `tools/video2midi/` | |
+| Flipdigits Player | `tools/flipdigits/` | ✓ |
 
 ## Adding a New Tool
 
-1. Create `tools/<name>/index.html` following the existing sidebar+canvas template
-2. Create `tools/<name>/<name>.js` importing from `../../js/media-source.js`
+1. Create `tools/<name>/index.html` following the existing sidebar+canvas template structure (back link → h1 → `#source-controls` → separators + controls → btn-row → canvas area + exit button)
+2. Create `tools/<name>/<name>.js` importing from `../../js/media-source.js` (unless standalone)
 3. Add a card to the root `index.html` tools grid
-4. Use existing CSS classes — avoid tool-specific stylesheets
+4. Use existing CSS classes from `css/style.css` — avoid tool-specific stylesheets
+5. Follow the established variable names: `canvas`, `ctx`, `app`, `mediaSource`, `animId`

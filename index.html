@@ -3,64 +3,94 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tools — Ksawery</title>
+  <title>Ksawery</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="index-page">
-    <h1>Tools</h1>
+    <header class="index-header">
+      <h1>Ksawery</h1>
+      <p>visual tools for the browser</p>
+    </header>
     <div class="tools-grid">
-      <a href="tools/dithering/" class="tool-card">
-        <h2>Dithering</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Real-time dithering effects on camera, video, screen capture, or image input with customizable palettes and adjustments.</p>
+      <a href="tools/dithering/" class="tool-card" style="animation-delay:.05s">
+        <canvas data-preview="dithering"></canvas>
+        <div class="tool-card-info">
+          <h2>Dithering</h2>
+          <p>Real-time dithering with custom color palettes and adjustments</p>
+        </div>
       </a>
-      <a href="tools/cellular-automata/" class="tool-card">
-        <h2>Cellular Automata</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Interactive cellular automata generator with multiple rules, color palettes, brush tools, and generative effects.</p>
+      <a href="tools/cellular-automata/" class="tool-card" style="animation-delay:.1s">
+        <canvas data-preview="cellular-automata"></canvas>
+        <div class="tool-card-info">
+          <h2>Cellular Automata</h2>
+          <p>Interactive automata with multiple rules, brushes, and effects</p>
+        </div>
       </a>
-      <a href="tools/gradient-map/" class="tool-card">
-        <h2>Gradient Map</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Map image luminance to custom color gradients. Supports camera, video, and image input with real-time preview.</p>
+      <a href="tools/gradient-map/" class="tool-card" style="animation-delay:.15s">
+        <canvas data-preview="gradient-map"></canvas>
+        <div class="tool-card-info">
+          <h2>Gradient Map</h2>
+          <p>Map image luminance to custom color gradients</p>
+        </div>
       </a>
-      <a href="tools/shapes/" class="tool-card">
-        <h2>Shapes</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Transform media into geometric shape grids. Luminance controls size and rotation with multiple shape types and color palettes.</p>
+      <a href="tools/shapes/" class="tool-card" style="animation-delay:.2s">
+        <canvas data-preview="shapes"></canvas>
+        <div class="tool-card-info">
+          <h2>Shapes</h2>
+          <p>Render media as grids of geometric shapes driven by luminance</p>
+        </div>
       </a>
-      <a href="tools/text/" class="tool-card">
-        <h2>Text</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Render images through text characters with color sampling, glitch effects, and customizable text sources.</p>
+      <a href="tools/text/" class="tool-card" style="animation-delay:.25s">
+        <canvas data-preview="text"></canvas>
+        <div class="tool-card-info">
+          <h2>Text</h2>
+          <p>Render images through text characters with glitch effects</p>
+        </div>
       </a>
-      <a href="tools/pixel-flow/" class="tool-card">
-        <h2>Pixel Flow</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Particle flow visualization driven by image luminance. Multiple flow modes, color schemes, and trail effects.</p>
+      <a href="tools/pixel-flow/" class="tool-card" style="animation-delay:.3s">
+        <canvas data-preview="pixel-flow"></canvas>
+        <div class="tool-card-info">
+          <h2>Pixel Flow</h2>
+          <p>Particle flow visualization driven by image luminance</p>
+        </div>
       </a>
-      <a href="tools/pixelator/" class="tool-card">
-        <h2>Pixelator</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Pixelate images with multiple styles — squares, circles, diamonds, crosses, and ASCII characters.</p>
+      <a href="tools/pixelator/" class="tool-card" style="animation-delay:.35s">
+        <canvas data-preview="pixelator"></canvas>
+        <div class="tool-card-info">
+          <h2>Pixelator</h2>
+          <p>Pixelation with multiple styles — squares, circles, diamonds, ASCII</p>
+        </div>
       </a>
-      <a href="tools/srt2video/" class="tool-card">
-        <h2>SRT to Video</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Visualize subtitle files as timed text sequences with customizable fonts, colors, and playback controls.</p>
+      <a href="tools/srt2video/" class="tool-card" style="animation-delay:.4s">
+        <canvas data-preview="srt2video"></canvas>
+        <div class="tool-card-info">
+          <h2>SRT to Video</h2>
+          <p>Visualize subtitle files as timed text sequences</p>
+        </div>
       </a>
-      <a href="tools/video2midi/" class="tool-card">
-        <h2>Video to MIDI</h2>
-        <span class="tag">JavaScript + Canvas + Web MIDI</span>
-        <p>Convert video brightness at sample points to MIDI notes with scale quantization and real-time output.</p>
+      <a href="tools/video2midi/" class="tool-card" style="animation-delay:.45s">
+        <canvas data-preview="video2midi"></canvas>
+        <div class="tool-card-info">
+          <h2>Video to MIDI</h2>
+          <p>Convert video brightness to MIDI notes with scale quantization</p>
+        </div>
       </a>
-      <a href="tools/flipdigits/" class="tool-card">
-        <h2>Flipdigits Player</h2>
-        <span class="tag">JavaScript + Canvas</span>
-        <p>Simulate flip-dot displays with animated transitions. Multiple dot styles, adjustable grid, and threshold control.</p>
+      <a href="tools/flipdigits/" class="tool-card" style="animation-delay:.5s">
+        <canvas data-preview="flipdigits"></canvas>
+        <div class="tool-card-info">
+          <h2>Flipdigits Player</h2>
+          <p>Simulated flip-dot displays with animated transitions</p>
+        </div>
       </a>
     </div>
   </div>
+  <script type="module">
+    import { initPreviews } from './js/previews.js';
+    initPreviews();
+  </script>
 </body>
 </html>
