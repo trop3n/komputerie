@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blob Tracker</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Blob Tracker</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Mode</label>
+        <div class="radio-row" id="mode-radios">
+          <input type="radio" name="mode" id="mode-threshold" value="threshold" checked>
+          <label for="mode-threshold">Threshold</label>
+          <input type="radio" name="mode" id="mode-bg-sub" value="bg-sub">
+          <label for="mode-bg-sub">BG Sub</label>
+          <input type="radio" name="mode" id="mode-color" value="color">
+          <label for="mode-color">Color</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Threshold</label>
+        <div class="range-row">
+          <input type="range" id="threshold" min="0" max="255" value="128">
+          <span class="range-value" data-for="threshold">128</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Invert</label>
+        <div class="radio-row" id="invert-radios">
+          <input type="radio" name="invert" id="invert-off" value="off" checked>
+          <label for="invert-off">Off</label>
+          <input type="radio" name="invert" id="invert-on" value="on">
+          <label for="invert-on">On</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Blur</label>
+        <div class="range-row">
+          <input type="range" id="blur" min="0" max="10" value="2" step="1">
+          <span class="range-value" data-for="blur">2</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Min Area</label>
+        <div class="range-row">
+          <input type="range" id="min-area" min="10" max="5000" value="100" step="10">
+          <span class="range-value" data-for="min-area">100</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Max Blobs</label>
+        <div class="range-row">
+          <input type="range" id="max-blobs" min="1" max="50" value="20">
+          <span class="range-value" data-for="max-blobs">20</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Brightness</label>
+        <div class="range-row">
+          <input type="range" id="brightness" min="-100" max="100" value="0">
+          <span class="range-value" data-for="brightness">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Contrast</label>
+        <div class="range-row">
+          <input type="range" id="contrast" min="-100" max="100" value="0">
+          <span class="range-value" data-for="contrast">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group" id="color-controls" style="display:none">
+        <label>Hue Center</label>
+        <div class="range-row">
+          <input type="range" id="hue-center" min="0" max="360" value="0">
+          <span class="range-value" data-for="hue-center">0</span>
+        </div>
+      </div>
+      <div class="control-group" id="hue-range-group" style="display:none">
+        <label>Hue Range</label>
+        <div class="range-row">
+          <input type="range" id="hue-range" min="5" max="180" value="30">
+          <span class="range-value" data-for="hue-range">30</span>
+        </div>
+      </div>
+      <div class="control-group" id="sat-min-group" style="display:none">
+        <label>Min Saturation</label>
+        <div class="range-row">
+          <input type="range" id="sat-min" min="0" max="100" value="30">
+          <span class="range-value" data-for="sat-min">30</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Display</label>
+        <div class="radio-row" id="display-radios">
+          <input type="radio" name="display" id="display-overlay" value="overlay" checked>
+          <label for="display-overlay">Overlay</label>
+          <input type="radio" name="display" id="display-mask" value="mask">
+          <label for="display-mask">Mask</label>
+          <input type="radio" name="display" id="display-contours" value="contours">
+          <label for="display-contours">Contours</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Show IDs</label>
+        <div class="radio-row" id="show-ids-radios">
+          <input type="radio" name="show-ids" id="ids-on" value="on" checked>
+          <label for="ids-on">On</label>
+          <input type="radio" name="show-ids" id="ids-off" value="off">
+          <label for="ids-off">Off</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group" id="bg-controls" style="display:none">
+        <button class="btn" id="btn-capture-bg">Capture Background</button>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label id="blob-count">Blobs: 0</label>
+        <label id="fps-display">FPS: 0</label>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="blob-tracker.js"></script>
+</body>
+</html>

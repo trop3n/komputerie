@@ -265,6 +265,43 @@ const effects = {
         }
       }
     }
+  },
+
+  'blob-tracker': {
+    init() {
+      const blobs = Array.from({ length: 5 }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+        r: 8 + Math.random() * 12, id: (Math.random() * 9 | 0) + 1
+      }));
+      return { blobs };
+    },
+    draw(ctx, f, s) {
+      ctx.fillStyle = 'rgba(10, 10, 10, 0.35)';
+      ctx.fillRect(0, 0, W, H);
+      const colors = ['#ff6b6b','#51cf66','#339af0','#fcc419','#cc5de8','#20c997','#ff922b','#a9e34b','#748ffc','#f06595'];
+      for (const b of s.blobs) {
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < b.r || b.x > W - b.r) b.vx *= -1;
+        if (b.y < b.r || b.y > H - b.r) b.vy *= -1;
+        const c = colors[(b.id - 1) % colors.length];
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fillStyle = c + '44';
+        ctx.fill();
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = c;
+        ctx.fill();
+        ctx.fillStyle = c;
+        ctx.font = 'bold 8px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.id, b.x, b.y - b.r - 3);
+      }
+    }
   }
 };
 
