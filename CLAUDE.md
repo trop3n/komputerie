@@ -32,6 +32,8 @@ Most tools import `MediaSource` from `js/media-source.js`. Standalone tools (cel
 
 ### Shared Modules
 
+**`js/previews.js`** — Animated canvas previews for the root index page. Exports `initPreviews()` which drives `<canvas data-preview="toolname">` elements on each tool card.
+
 **`js/media-source.js`** — Unified media input API:
 - `MediaSource` class with properties: `.drawable` (HTMLVideoElement|HTMLImageElement), `.ready` (boolean), `.width`, `.height`, `.type` (`'camera'|'screen'|'video'|'image'`)
 - Async methods: `useCamera()`, `useScreen()`, `useVideo(file)`, `useImage(file)`, `stop()`
@@ -102,20 +104,21 @@ onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); 
 - **Luminance formula**: `0.299 * r + 0.587 * g + 0.114 * b`
 - **Caching**: Expensive computations cached (Bayer matrices, parsed color palettes)
 
-## Current Tools (10)
+## Current Tools (11)
 
 | Tool | Dir | Standalone |
 |------|-----|:----------:|
-| Dithering | `tools/dithering/` | |
+| Blob Tracker | `tools/blob-tracker/` | |
 | Cellular Automata | `tools/cellular-automata/` | ✓ |
+| Dithering | `tools/dithering/` | |
+| Flipdigits Player | `tools/flipdigits/` | ✓ |
 | Gradient Map | `tools/gradient-map/` | |
-| Shapes | `tools/shapes/` | |
-| Text | `tools/text/` | |
 | Pixel Flow | `tools/pixel-flow/` | |
 | Pixelator | `tools/pixelator/` | |
+| Shapes | `tools/shapes/` | |
 | SRT to Video | `tools/srt2video/` | ✓ |
+| Text | `tools/text/` | |
 | Video to MIDI | `tools/video2midi/` | |
-| Flipdigits Player | `tools/flipdigits/` | ✓ |
 
 ## Adding a New Tool
 

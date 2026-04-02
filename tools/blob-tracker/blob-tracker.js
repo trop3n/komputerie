@@ -12,13 +12,31 @@ const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
 const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
 
+// --- State ---
 let animId = null;
 let backgroundFrame = null;
 let trackedBlobs = [];
 let nextBlobId = 1;
 let lastFrameTime = performance.now();
 let fpsSmooth = 0;
+let frameNum = 0;
+const trails = new Map(); // blobId -> [{x, y}]
 
+// --- Font cache ---
+let _mono;
+function mono() {
+  if (!_mono) _mono = getComputedStyle(document.body).getPropertyValue('--mono').trim() || 'monospace';
+  return _mono;
+}
+
+function colorWithAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// --- Element refs ---
 const els = {
   threshold: document.getElementById('threshold'),
   blur: document.getElementById('blur'),
@@ -29,6 +47,7 @@ const els = {
   hueCenter: document.getElementById('hue-center'),
   hueRange: document.getElementById('hue-range'),
   satMin: document.getElementById('sat-min'),
+  trailLength: document.getElementById('trail-length'),
   blobCount: document.getElementById('blob-count'),
   fpsDisplay: document.getElementById('fps-display'),
   colorControls: document.getElementById('color-controls'),
@@ -37,32 +56,24 @@ const els = {
   bgControls: document.getElementById('bg-controls'),
 };
 
+// --- Helpers ---
+function getRadio(id) { return document.querySelector(`#${id} input:checked`)?.value; }
+function getMode() { return getRadio('mode-radios') || 'threshold'; }
+function getDisplay() { return getRadio('display-radios') || 'overlay'; }
+function getInvert() { return getRadio('invert-radios') === 'on'; }
+function getConnections() { return getRadio('connections-radios') === 'on'; }
+function getLabels() { return getRadio('labels-radios') === 'on'; }
+
+// --- Event wiring ---
 document.querySelectorAll('input[type="range"]').forEach(r => {
   const span = document.querySelector(`.range-value[data-for="${r.id}"]`);
   if (span) r.addEventListener('input', () => { span.textContent = r.value; });
 });
 
-function getMode() {
-  return document.querySelector('#mode-radios input:checked')?.value || 'threshold';
-}
-
-function getDisplay() {
-  return document.querySelector('#display-radios input:checked')?.value || 'overlay';
-}
-
-function getInvert() {
-  return document.querySelector('#invert-radios input:checked')?.value === 'on';
-}
-
-function getShowIds() {
-  return document.querySelector('#show-ids-radios input:checked')?.value === 'on';
-}
-
 document.querySelectorAll('#mode-radios input').forEach(r => {
   r.addEventListener('change', () => {
-    const mode = r.value;
-    const isColor = mode === 'color';
-    const isBgSub = mode === 'bg-sub';
+    const isColor = r.value === 'color';
+    const isBgSub = r.value === 'bg-sub';
     els.colorControls.style.display = isColor ? '' : 'none';
     els.hueRangeGroup.style.display = isColor ? '' : 'none';
     els.satMinGroup.style.display = isColor ? '' : 'none';
@@ -72,11 +83,12 @@ document.querySelectorAll('#mode-radios input').forEach(r => {
 
 document.getElementById('btn-capture-bg').addEventListener('click', () => {
   if (!mediaSource.ready) return;
-  const w = sampCanvas.width;
-  const h = sampCanvas.height;
+  const w = sampCanvas.width, h = sampCanvas.height;
   if (w === 0 || h === 0) return;
   backgroundFrame = sampCtx.getImageData(0, 0, w, h);
 });
+
+// --- Detection functions ---
 
 function rgbToHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
@@ -101,7 +113,6 @@ function applyBlur(data, w, h, radius) {
   const src = new Uint8ClampedArray(data);
   const size = radius * 2 + 1;
   const area = size * size;
-
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let rSum = 0, gSum = 0, bSum = 0;
@@ -126,29 +137,19 @@ function createBinaryMask(srcData, w, h, mode, thresh, invert, hueCenter, hueRan
   const mask = new Uint8Array(w * h);
   const f = (259 * (cont + 255)) / (255 * (259 - cont));
   const brightAdj = bright * 2.55;
-
   for (let i = 0; i < w * h; i++) {
     const si = i * 4;
-    let r = srcData[si] + brightAdj;
-    let g = srcData[si + 1] + brightAdj;
-    let b = srcData[si + 2] + brightAdj;
-    r = f * (r - 128) + 128;
-    g = f * (g - 128) + 128;
-    b = f * (b - 128) + 128;
-    r = Math.max(0, Math.min(255, r));
-    g = Math.max(0, Math.min(255, g));
-    b = Math.max(0, Math.min(255, b));
-
+    let r = Math.max(0, Math.min(255, f * (srcData[si] + brightAdj - 128) + 128));
+    let g = Math.max(0, Math.min(255, f * (srcData[si + 1] + brightAdj - 128) + 128));
+    let b = Math.max(0, Math.min(255, f * (srcData[si + 2] + brightAdj - 128) + 128));
     if (mode === 'color') {
       const [hue, sat] = rgbToHsl(r, g, b);
       let hueDiff = Math.abs(hue - hueCenter);
       if (hueDiff > 180) hueDiff = 360 - hueDiff;
       mask[i] = (hueDiff <= hueRange && sat >= satMin) ? 1 : 0;
     } else {
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      mask[i] = lum >= thresh ? 1 : 0;
+      mask[i] = (0.299 * r + 0.587 * g + 0.114 * b) >= thresh ? 1 : 0;
     }
-
     if (invert) mask[i] = mask[i] ? 0 : 1;
   }
   return mask;
@@ -158,21 +159,13 @@ function createBgSubMask(srcData, bgData, w, h, thresh, invert, bright, cont) {
   const mask = new Uint8Array(w * h);
   const f = (259 * (cont + 255)) / (255 * (259 - cont));
   const brightAdj = bright * 2.55;
-
   for (let i = 0; i < w * h; i++) {
     const si = i * 4;
-    let r1 = srcData[si] + brightAdj;
-    let g1 = srcData[si + 1] + brightAdj;
-    let b1 = srcData[si + 2] + brightAdj;
-    r1 = Math.max(0, Math.min(255, f * (r1 - 128) + 128));
-    g1 = Math.max(0, Math.min(255, f * (g1 - 128) + 128));
-    b1 = Math.max(0, Math.min(255, f * (b1 - 128) + 128));
-
-    const r2 = bgData[si], g2 = bgData[si + 1], b2 = bgData[si + 2];
-    const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-    const diff = Math.sqrt(dr * dr + dg * dg + db * db);
-    mask[i] = diff >= thresh ? 1 : 0;
-
+    const r1 = Math.max(0, Math.min(255, f * (srcData[si] + brightAdj - 128) + 128));
+    const g1 = Math.max(0, Math.min(255, f * (srcData[si + 1] + brightAdj - 128) + 128));
+    const b1 = Math.max(0, Math.min(255, f * (srcData[si + 2] + brightAdj - 128) + 128));
+    const dr = r1 - bgData[si], dg = g1 - bgData[si + 1], db = b1 - bgData[si + 2];
+    mask[i] = Math.sqrt(dr * dr + dg * dg + db * db) >= thresh ? 1 : 0;
     if (invert) mask[i] = mask[i] ? 0 : 1;
   }
   return mask;
@@ -182,57 +175,34 @@ function labelConnectedComponents(mask, w, h, minArea, maxBlobs) {
   const labels = new Int32Array(w * h);
   const blobs = [];
   let labelId = 0;
-
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       if (!mask[idx] || labels[idx]) continue;
-
       labelId++;
       const stack = [idx];
-      let area = 0;
-      let minX = x, maxX = x, minY = y, maxY = y;
-      let sumX = 0, sumY = 0;
-      const pixels = [];
-
+      let area = 0, minX = x, maxX = x, minY = y, maxY = y, sumX = 0, sumY = 0;
       while (stack.length > 0) {
         const ci = stack.pop();
         if (labels[ci]) continue;
-        const cx = ci % w;
-        const cy = (ci / w) | 0;
-        if (cx < 0 || cx >= w || cy < 0 || cy >= h) continue;
-        if (!mask[ci] || labels[ci]) continue;
-
+        const cx = ci % w, cy = (ci / w) | 0;
+        if (!mask[ci]) continue;
         labels[ci] = labelId;
-        area++;
-        sumX += cx;
-        sumY += cy;
+        area++; sumX += cx; sumY += cy;
         if (cx < minX) minX = cx;
         if (cx > maxX) maxX = cx;
         if (cy < minY) minY = cy;
         if (cy > maxY) maxY = cy;
-        pixels.push(ci);
-
-        if (cx > 0) stack.push(ci - 1);
-        if (cx < w - 1) stack.push(ci + 1);
-        if (cy > 0) stack.push(ci - w);
-        if (cy < h - 1) stack.push(ci + w);
+        if (cx > 0 && !labels[ci - 1]) stack.push(ci - 1);
+        if (cx < w - 1 && !labels[ci + 1]) stack.push(ci + 1);
+        if (cy > 0 && !labels[ci - w]) stack.push(ci - w);
+        if (cy < h - 1 && !labels[ci + w]) stack.push(ci + w);
       }
-
       if (area >= minArea) {
-        blobs.push({
-          id: 0,
-          label: labelId,
-          area,
-          cx: sumX / area,
-          cy: sumY / area,
-          minX, minY, maxX, maxY,
-          pixels,
-        });
+        blobs.push({ id: 0, label: labelId, area, cx: sumX / area, cy: sumY / area, minX, minY, maxX, maxY });
       }
     }
   }
-
   blobs.sort((a, b) => b.area - a.area);
   return blobs.slice(0, maxBlobs);
 }
@@ -241,37 +211,38 @@ function trackBlobs(detected) {
   const maxDist = 60;
   const used = new Set();
   const updated = [];
-
   for (const prev of trackedBlobs) {
-    let best = null;
-    let bestDist = maxDist;
+    let best = null, bestDist = maxDist;
     for (const det of detected) {
       if (used.has(det)) continue;
-      const dx = det.cx - prev.cx;
-      const dy = det.cy - prev.cy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < bestDist) {
-        bestDist = d;
-        best = det;
-      }
+      const d = Math.sqrt((det.cx - prev.cx) ** 2 + (det.cy - prev.cy) ** 2);
+      if (d < bestDist) { bestDist = d; best = det; }
     }
-    if (best) {
-      used.add(best);
-      best.id = prev.id;
-      updated.push(best);
-    }
+    if (best) { used.add(best); best.id = prev.id; updated.push(best); }
   }
-
   for (const det of detected) {
-    if (!used.has(det)) {
-      det.id = nextBlobId++;
-      updated.push(det);
-    }
+    if (!used.has(det)) { det.id = nextBlobId++; updated.push(det); }
   }
-
   trackedBlobs = updated;
   return updated;
 }
+
+// --- Trail management ---
+
+function updateTrails(blobs, maxLen) {
+  const activeIds = new Set(blobs.map(b => b.id));
+  for (const blob of blobs) {
+    if (!trails.has(blob.id)) trails.set(blob.id, []);
+    trails.get(blob.id).push({ x: blob.cx, y: blob.cy });
+  }
+  for (const [id, trail] of trails) {
+    while (trail.length > maxLen) trail.shift();
+    if (!activeIds.has(id)) trail.shift();
+    if (trail.length === 0) trails.delete(id);
+  }
+}
+
+// --- Blob colors ---
 
 const blobColors = [
   '#ff6b6b', '#51cf66', '#339af0', '#fcc419', '#cc5de8',
@@ -284,46 +255,169 @@ function getBlobColor(id) {
   return blobColors[(id - 1) % blobColors.length];
 }
 
-function drawContours(ctx, blobs, w, h, scale, showIds) {
-  for (const blob of blobs) {
-    const color = getBlobColor(blob.id);
-    const perimeter = new Set();
+// --- Drawing: data-viz art overlay ---
 
-    for (const pi of blob.pixels) {
-      const px = pi % w;
-      const py = (pi / w) | 0;
-      const isEdge =
-        px === 0 || px === w - 1 || py === 0 || py === h - 1 ||
-        !blob.pixels.includes(pi - 1) || !blob.pixels.includes(pi + 1) ||
-        !blob.pixels.includes(pi - w) || !blob.pixels.includes(pi + w);
-      if (isEdge) perimeter.add(pi);
-    }
+function drawScanlines(ctx, w, h) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.025)';
+  ctx.lineWidth = 1;
+  for (let y = 0; y < h; y += 4) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(w, y + 0.5);
+    ctx.stroke();
+  }
+}
 
-    ctx.fillStyle = color;
-    for (const pi of perimeter) {
-      const px = pi % w;
-      const py = (pi / w) | 0;
-      ctx.fillRect(px * scale, py * scale, scale, scale);
-    }
+function drawCornerBrackets(ctx, x, y, w, h, color, cornerLen) {
+  const cl = Math.min(cornerLen, w / 3, h / 3);
+  // Glow pass
+  ctx.strokeStyle = colorWithAlpha(color, 0.25);
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  // TL
+  ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y);
+  // TR
+  ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl);
+  // BL
+  ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h);
+  // BR
+  ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl);
+  ctx.stroke();
+  // Sharp pass
+  ctx.strokeStyle = colorWithAlpha(color, 0.85);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y);
+  ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl);
+  ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h);
+  ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl);
+  ctx.stroke();
+}
 
-    if (showIds) {
-      ctx.fillStyle = '#fff';
-      ctx.font = `bold ${Math.max(10, scale * 5)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
+function drawCrosshair(ctx, cx, cy, size, color) {
+  const gap = size * 0.35;
+  // Glow
+  ctx.strokeStyle = colorWithAlpha(color, 0.3);
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - size, cy); ctx.lineTo(cx - gap, cy);
+  ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + size, cy);
+  ctx.moveTo(cx, cy - size); ctx.lineTo(cx, cy - gap);
+  ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + size);
+  ctx.stroke();
+  // Sharp
+  ctx.strokeStyle = colorWithAlpha(color, 0.9);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - size, cy); ctx.lineTo(cx - gap, cy);
+  ctx.moveTo(cx + gap, cy); ctx.lineTo(cx + size, cy);
+  ctx.moveTo(cx, cy - size); ctx.lineTo(cx, cy - gap);
+  ctx.moveTo(cx, cy + gap); ctx.lineTo(cx, cy + size);
+  ctx.stroke();
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawDataLabel(ctx, blob, scale, color, canvasW, canvasH) {
+  const pad = 6;
+  const labelW = 82;
+  const labelH = 42;
+  let lx = (blob.maxX + 1) * scale + pad;
+  let ly = blob.minY * scale;
+  if (lx + labelW > canvasW) lx = blob.minX * scale - pad - labelW;
+  if (lx < 0) lx = pad;
+  if (ly + labelH > canvasH) ly = canvasH - labelH - pad;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(lx, ly, labelW, labelH);
+  // Left accent bar
+  ctx.fillStyle = color;
+  ctx.fillRect(lx, ly, 2, labelH);
+
+  const f = mono();
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  // ID
+  ctx.font = `bold 10px ${f}`;
+  ctx.fillStyle = color;
+  ctx.fillText(`ID ${blob.id}`, lx + 7, ly + 4);
+  // Area
+  ctx.font = `9px ${f}`;
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.fillText(`${blob.area} px`, lx + 7, ly + 17);
+  // Position
+  ctx.fillText(`${Math.round(blob.cx)}, ${Math.round(blob.cy)}`, lx + 7, ly + 28);
+}
+
+function drawConnections(ctx, blobs, scale) {
+  if (blobs.length < 2) return;
+  ctx.setLineDash([3, 4]);
+  for (let i = 0; i < blobs.length; i++) {
+    for (let j = i + 1; j < blobs.length; j++) {
+      const a = blobs[i], b = blobs[j];
+      const ax = a.cx * scale, ay = a.cy * scale;
+      const bx = b.cx * scale, by = b.cy * scale;
+      const dist = Math.sqrt((a.cx - b.cx) ** 2 + (a.cy - b.cy) ** 2);
+      // Line
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+      // Distance at midpoint
+      const mx = (ax + bx) / 2, my = (ay + by) / 2;
+      ctx.font = `8px ${mono()}`;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${blob.id}`, blob.cx * scale, blob.cy * scale - scale * 3);
-      ctx.fillStyle = color;
-      ctx.font = `${Math.max(9, scale * 3.5)}px ${getComputedStyle(document.body).getPropertyValue('--mono')}`;
-      ctx.fillText(`area: ${blob.area}`, blob.cx * scale, blob.cy * scale + scale * 3);
+      ctx.fillText(Math.round(dist), mx, my - 5);
+    }
+  }
+  ctx.setLineDash([]);
+}
+
+function drawTrailDots(ctx, scale) {
+  for (const [id, trail] of trails) {
+    const color = getBlobColor(id);
+    const len = trail.length;
+    for (let i = 0; i < len - 1; i++) {
+      const alpha = ((i + 1) / len) * 0.55;
+      ctx.fillStyle = colorWithAlpha(color, alpha);
+      ctx.beginPath();
+      ctx.arc(trail[i].x * scale, trail[i].y * scale, 1.5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }
 
+function drawHUD(ctx, blobs, w, h) {
+  const f = mono();
+  const pad = 8;
+  // Bottom-left HUD line
+  ctx.font = `9px ${f}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  const str = `TRACK  F:${String(frameNum).padStart(5, '0')}  OBJ:${blobs.length}`;
+  ctx.fillText(str, pad, h - pad);
+  // Frame border
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+}
+
+// --- Main render ---
+
 function render() {
   if (!mediaSource.ready) return;
+  frameNum++;
 
-  const srcW = mediaSource.width;
-  const srcH = mediaSource.height;
+  const srcW = mediaSource.width, srcH = mediaSource.height;
   const procW = Math.min(srcW, 320);
   const procH = Math.round(procW * (srcH / srcW));
 
@@ -334,7 +428,8 @@ function render() {
 
   const mode = getMode();
   const display = getDisplay();
-  const showIds = getShowIds();
+  const showConnections = getConnections();
+  const showLabels = getLabels();
   const thresh = +els.threshold.value;
   const blurRadius = +els.blur.value;
   const minArea = +els.minArea.value;
@@ -342,6 +437,7 @@ function render() {
   const bright = +els.brightness.value;
   const cont = +els.contrast.value;
   const invert = getInvert();
+  const trailLen = +els.trailLength.value;
 
   let frameData = srcData.data;
   if (blurRadius > 0) {
@@ -364,87 +460,114 @@ function render() {
     }
     mask = createBgSubMask(frameData, backgroundFrame.data, procW, procH, thresh, invert, bright, cont);
   } else {
-    const hueCenter = +els.hueCenter.value;
-    const hueRange = +els.hueRange.value;
-    const satMin = +els.satMin.value;
-    mask = createBinaryMask(frameData, procW, procH, mode, thresh, invert, hueCenter, hueRange, satMin, bright, cont);
+    mask = createBinaryMask(frameData, procW, procH, mode, thresh, invert, +els.hueCenter.value, +els.hueRange.value, +els.satMin.value, bright, cont);
   }
-
-  maskCanvas.width = procW;
-  maskCanvas.height = procH;
-  const maskImgData = maskCtx.createImageData(procW, procH);
-  for (let i = 0; i < mask.length; i++) {
-    const v = mask[i] ? 255 : 0;
-    maskImgData.data[i * 4] = v;
-    maskImgData.data[i * 4 + 1] = v;
-    maskImgData.data[i * 4 + 2] = v;
-    maskImgData.data[i * 4 + 3] = 255;
-  }
-  maskCtx.putImageData(maskImgData, 0, 0);
 
   const detected = labelConnectedComponents(mask, procW, procH, minArea, maxBlobs);
   const blobs = trackBlobs(detected);
 
-  const scale = Math.max(1, Math.floor(Math.min(canvas.parentElement?.clientWidth || procW, canvas.parentElement?.clientHeight || procH) / Math.max(procW, procH) * 2));
-  const outW = procW * scale;
-  const outH = procH * scale;
+  // Update trails
+  updateTrails(blobs, Math.max(1, trailLen));
+
+  // Output scaling
+  const scale = Math.max(1, Math.floor(
+    Math.min(canvas.parentElement?.clientWidth || procW, canvas.parentElement?.clientHeight || procH)
+    / Math.max(procW, procH) * 2
+  ));
+  const outW = procW * scale, outH = procH * scale;
   canvas.width = outW;
   canvas.height = outH;
   ctx.imageSmoothingEnabled = false;
 
   if (display === 'mask') {
+    // Debug mask view with simple overlay
+    maskCanvas.width = procW;
+    maskCanvas.height = procH;
+    const maskImgData = maskCtx.createImageData(procW, procH);
+    for (let i = 0; i < mask.length; i++) {
+      const v = mask[i] ? 255 : 0;
+      maskImgData.data[i * 4] = v;
+      maskImgData.data[i * 4 + 1] = v;
+      maskImgData.data[i * 4 + 2] = v;
+      maskImgData.data[i * 4 + 3] = 255;
+    }
+    maskCtx.putImageData(maskImgData, 0, 0);
     ctx.drawImage(maskCanvas, 0, 0, outW, outH);
-  } else if (display === 'contours') {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, outW, outH);
-    drawContours(ctx, blobs, procW, procH, scale, showIds);
-  } else {
-    ctx.drawImage(sampCanvas, 0, 0, outW, outH);
+    // Simple bbox outlines on mask
     for (const blob of blobs) {
       const color = getBlobColor(blob.id);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        blob.minX * scale,
-        blob.minY * scale,
-        (blob.maxX - blob.minX + 1) * scale,
-        (blob.maxY - blob.minY + 1) * scale,
-      );
-
-      ctx.beginPath();
-      ctx.arc(blob.cx * scale, blob.cy * scale, 4, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(blob.minX * scale, blob.minY * scale, (blob.maxX - blob.minX + 1) * scale, (blob.maxY - blob.minY + 1) * scale);
       ctx.fillStyle = color;
-      ctx.fill();
-
-      if (showIds) {
-        ctx.fillStyle = '#000';
-        ctx.fillRect(blob.cx * scale - 12, blob.cy * scale - scale * 3 - 8, 24, 12);
-        ctx.fillStyle = color;
-        ctx.font = `bold 10px monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${blob.id}`, blob.cx * scale, blob.cy * scale - scale * 3 - 2);
-      }
+      ctx.font = `bold 10px ${mono()}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${blob.id}`, blob.cx * scale, blob.minY * scale - 3);
     }
+  } else {
+    // --- Data-viz art overlay ---
+
+    // Source image
+    ctx.drawImage(sampCanvas, 0, 0, outW, outH);
+
+    // Darken for contrast
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(0, 0, outW, outH);
+
+    // Scanlines
+    drawScanlines(ctx, outW, outH);
+
+    // Trails
+    if (trailLen > 0) drawTrailDots(ctx, scale);
+
+    // Connections
+    if (showConnections) drawConnections(ctx, blobs, scale);
+
+    // Per-blob overlays
+    const bracketPad = 5;
+    for (const blob of blobs) {
+      const color = getBlobColor(blob.id);
+      const bx = blob.minX * scale - bracketPad;
+      const by = blob.minY * scale - bracketPad;
+      const bw = (blob.maxX - blob.minX + 1) * scale + bracketPad * 2;
+      const bh = (blob.maxY - blob.minY + 1) * scale + bracketPad * 2;
+
+      // Subtle fill inside brackets
+      ctx.fillStyle = colorWithAlpha(color, 0.06);
+      ctx.fillRect(bx, by, bw, bh);
+
+      // Corner brackets
+      drawCornerBrackets(ctx, bx, by, bw, bh, color, 14);
+
+      // Crosshair at centroid
+      drawCrosshair(ctx, blob.cx * scale, blob.cy * scale, 10, color);
+
+      // Data label
+      if (showLabels) drawDataLabel(ctx, blob, scale, color, outW, outH);
+    }
+
+    // HUD
+    drawHUD(ctx, blobs, outW, outH);
   }
 
+  // FPS
   const now = performance.now();
   const dt = now - lastFrameTime;
   lastFrameTime = now;
-  const fps = dt > 0 ? 1000 / dt : 0;
-  fpsSmooth = fpsSmooth * 0.9 + fps * 0.1;
-
+  fpsSmooth = fpsSmooth * 0.9 + (dt > 0 ? 1000 / dt : 0) * 0.1;
   els.blobCount.textContent = `Blobs: ${blobs.length}`;
   els.fpsDisplay.textContent = `FPS: ${fpsSmooth.toFixed(0)}`;
 }
 
+// --- Loop ---
 function loop() {
   if (mediaSource.ready) render();
   animId = requestAnimationFrame(loop);
 }
-
 onChange(() => { if (!animId) loop(); });
 
+// --- Fullscreen & Save ---
 function toggleFullscreen() { app.classList.toggle('fullscreen'); }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscreen);

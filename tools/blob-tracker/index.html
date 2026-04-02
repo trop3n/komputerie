@@ -99,6 +99,9 @@
           <span class="range-value" data-for="sat-min">30</span>
         </div>
       </div>
+      <div class="control-group" id="bg-controls" style="display:none">
+        <button class="btn" id="btn-capture-bg">Capture Background</button>
+      </div>
       <hr class="separator">
       <div class="control-group">
         <label>Display</label>
@@ -107,22 +110,32 @@
           <label for="display-overlay">Overlay</label>
           <input type="radio" name="display" id="display-mask" value="mask">
           <label for="display-mask">Mask</label>
-          <input type="radio" name="display" id="display-contours" value="contours">
-          <label for="display-contours">Contours</label>
         </div>
       </div>
       <div class="control-group">
-        <label>Show IDs</label>
-        <div class="radio-row" id="show-ids-radios">
-          <input type="radio" name="show-ids" id="ids-on" value="on" checked>
-          <label for="ids-on">On</label>
-          <input type="radio" name="show-ids" id="ids-off" value="off">
-          <label for="ids-off">Off</label>
+        <label>Connections</label>
+        <div class="radio-row" id="connections-radios">
+          <input type="radio" name="connections" id="connections-on" value="on" checked>
+          <label for="connections-on">On</label>
+          <input type="radio" name="connections" id="connections-off" value="off">
+          <label for="connections-off">Off</label>
         </div>
       </div>
-      <hr class="separator">
-      <div class="control-group" id="bg-controls" style="display:none">
-        <button class="btn" id="btn-capture-bg">Capture Background</button>
+      <div class="control-group">
+        <label>Labels</label>
+        <div class="radio-row" id="labels-radios">
+          <input type="radio" name="labels" id="labels-on" value="on" checked>
+          <label for="labels-on">On</label>
+          <input type="radio" name="labels" id="labels-off" value="off">
+          <label for="labels-off">Off</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Trail Length</label>
+        <div class="range-row">
+          <input type="range" id="trail-length" min="0" max="60" value="20">
+          <span class="range-value" data-for="trail-length">20</span>
+        </div>
       </div>
       <hr class="separator">
       <div class="control-group">
