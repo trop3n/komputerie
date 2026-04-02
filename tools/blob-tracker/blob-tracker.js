@@ -20,7 +20,7 @@ let nextBlobId = 1;
 let lastFrameTime = performance.now();
 let fpsSmooth = 0;
 let frameNum = 0;
-const trails = new Map(); // blobId -> [{x, y}]
+const trails = new Map();
 
 // --- Font cache ---
 let _mono;
@@ -47,7 +47,10 @@ const els = {
   hueCenter: document.getElementById('hue-center'),
   hueRange: document.getElementById('hue-range'),
   satMin: document.getElementById('sat-min'),
+  smoothing: document.getElementById('smoothing'),
   trailLength: document.getElementById('trail-length'),
+  thickness: document.getElementById('thickness'),
+  fillOpacity: document.getElementById('fill-opacity'),
   blobCount: document.getElementById('blob-count'),
   fpsDisplay: document.getElementById('fps-display'),
   colorControls: document.getElementById('color-controls'),
@@ -63,6 +66,19 @@ function getDisplay() { return getRadio('display-radios') || 'overlay'; }
 function getInvert() { return getRadio('invert-radios') === 'on'; }
 function getConnections() { return getRadio('connections-radios') === 'on'; }
 function getLabels() { return getRadio('labels-radios') === 'on'; }
+function getMetrics() { return getRadio('metrics-radios') === 'on'; }
+function getGrid() { return getRadio('grid-radios') === 'on'; }
+function getBoxStyle() { return getRadio('box-style-radios') || 'brackets'; }
+function getDotted() { return getRadio('dotted-radios') === 'on'; }
+
+// --- Tab switching ---
+document.querySelectorAll('#tab-radios input').forEach(r => {
+  r.addEventListener('change', () => {
+    document.querySelectorAll('.tab-content').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === r.value);
+    });
+  });
+});
 
 // --- Event wiring ---
 document.querySelectorAll('input[type="range"]').forEach(r => {
@@ -199,7 +215,7 @@ function labelConnectedComponents(mask, w, h, minArea, maxBlobs) {
         if (cy < h - 1 && !labels[ci + w]) stack.push(ci + w);
       }
       if (area >= minArea) {
-        blobs.push({ id: 0, label: labelId, area, cx: sumX / area, cy: sumY / area, minX, minY, maxX, maxY });
+        blobs.push({ id: 0, label: labelId, area, cx: sumX / area, cy: sumY / area, minX, minY, maxX, maxY, vx: 0, vy: 0 });
       }
     }
   }
@@ -207,7 +223,7 @@ function labelConnectedComponents(mask, w, h, minArea, maxBlobs) {
   return blobs.slice(0, maxBlobs);
 }
 
-function trackBlobs(detected) {
+function trackBlobs(detected, smoothing) {
   const maxDist = 60;
   const used = new Set();
   const updated = [];
@@ -218,10 +234,22 @@ function trackBlobs(detected) {
       const d = Math.sqrt((det.cx - prev.cx) ** 2 + (det.cy - prev.cy) ** 2);
       if (d < bestDist) { bestDist = d; best = det; }
     }
-    if (best) { used.add(best); best.id = prev.id; updated.push(best); }
+    if (best) {
+      used.add(best);
+      best.id = prev.id;
+      // Velocity from raw detection before smoothing
+      best.vx = best.cx - prev.cx;
+      best.vy = best.cy - prev.cy;
+      // Motion smoothing
+      if (smoothing > 0) {
+        best.cx = (1 - smoothing) * best.cx + smoothing * prev.cx;
+        best.cy = (1 - smoothing) * best.cy + smoothing * prev.cy;
+      }
+      updated.push(best);
+    }
   }
   for (const det of detected) {
-    if (!used.has(det)) { det.id = nextBlobId++; updated.push(det); }
+    if (!used.has(det)) { det.id = nextBlobId++; det.vx = 0; det.vy = 0; updated.push(det); }
   }
   trackedBlobs = updated;
   return updated;
@@ -255,7 +283,7 @@ function getBlobColor(id) {
   return blobColors[(id - 1) % blobColors.length];
 }
 
-// --- Drawing: data-viz art overlay ---
+// --- Drawing functions ---
 
 function drawScanlines(ctx, w, h) {
   ctx.strokeStyle = 'rgba(255,255,255,0.025)';
@@ -268,30 +296,62 @@ function drawScanlines(ctx, w, h) {
   }
 }
 
-function drawCornerBrackets(ctx, x, y, w, h, color, cornerLen) {
-  const cl = Math.min(cornerLen, w / 3, h / 3);
+function drawGrid(ctx, w, h) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < w; x += 50) {
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, h);
+  }
+  for (let y = 0; y < h; y += 50) {
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(w, y + 0.5);
+  }
+  ctx.stroke();
+}
+
+function drawCornerBrackets(ctx, x, y, w, h, color, thickness) {
+  const cl = Math.min(w, h) * 0.3;
   // Glow pass
   ctx.strokeStyle = colorWithAlpha(color, 0.25);
-  ctx.lineWidth = 3;
+  ctx.lineWidth = thickness + 1.5;
   ctx.beginPath();
-  // TL
   ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y);
-  // TR
   ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl);
-  // BL
   ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h);
-  // BR
   ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl);
   ctx.stroke();
   // Sharp pass
   ctx.strokeStyle = colorWithAlpha(color, 0.85);
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = thickness;
   ctx.beginPath();
   ctx.moveTo(x, y + cl); ctx.lineTo(x, y); ctx.lineTo(x + cl, y);
   ctx.moveTo(x + w - cl, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cl);
   ctx.moveTo(x, y + h - cl); ctx.lineTo(x, y + h); ctx.lineTo(x + cl, y + h);
   ctx.moveTo(x + w - cl, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cl);
   ctx.stroke();
+}
+
+function drawFullBox(ctx, x, y, w, h, color, thickness) {
+  // Glow
+  ctx.strokeStyle = colorWithAlpha(color, 0.25);
+  ctx.lineWidth = thickness + 1.5;
+  ctx.strokeRect(x, y, w, h);
+  // Sharp
+  ctx.strokeStyle = colorWithAlpha(color, 0.85);
+  ctx.lineWidth = thickness;
+  ctx.strokeRect(x, y, w, h);
+}
+
+function drawBoundingBox(ctx, x, y, w, h, color, thickness, useBrackets, useDotted) {
+  if (useDotted) ctx.setLineDash([4, 4]);
+  if (useBrackets) {
+    drawCornerBrackets(ctx, x, y, w, h, color, thickness);
+  } else {
+    drawFullBox(ctx, x, y, w, h, color, thickness);
+  }
+  if (useDotted) ctx.setLineDash([]);
 }
 
 function drawCrosshair(ctx, cx, cy, size, color) {
@@ -323,55 +383,49 @@ function drawCrosshair(ctx, cx, cy, size, color) {
 
 function drawDataLabel(ctx, blob, scale, color, canvasW, canvasH) {
   const pad = 6;
-  const labelW = 82;
-  const labelH = 42;
+  const labelW = 82, labelH = 42;
   let lx = (blob.maxX + 1) * scale + pad;
   let ly = blob.minY * scale;
   if (lx + labelW > canvasW) lx = blob.minX * scale - pad - labelW;
   if (lx < 0) lx = pad;
   if (ly + labelH > canvasH) ly = canvasH - labelH - pad;
 
-  // Background
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
   ctx.fillRect(lx, ly, labelW, labelH);
-  // Left accent bar
   ctx.fillStyle = color;
   ctx.fillRect(lx, ly, 2, labelH);
 
   const f = mono();
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  // ID
   ctx.font = `bold 10px ${f}`;
   ctx.fillStyle = color;
   ctx.fillText(`ID ${blob.id}`, lx + 7, ly + 4);
-  // Area
   ctx.font = `9px ${f}`;
   ctx.fillStyle = 'rgba(255,255,255,0.65)';
   ctx.fillText(`${blob.area} px`, lx + 7, ly + 17);
-  // Position
   ctx.fillText(`${Math.round(blob.cx)}, ${Math.round(blob.cy)}`, lx + 7, ly + 28);
 }
 
-function drawConnections(ctx, blobs, scale) {
+function drawConnections(ctx, blobs, scale, dotted) {
   if (blobs.length < 2) return;
-  ctx.setLineDash([3, 4]);
+  if (dotted) ctx.setLineDash([3, 4]);
+  else ctx.setLineDash([3, 4]);
+  const f = mono();
   for (let i = 0; i < blobs.length; i++) {
     for (let j = i + 1; j < blobs.length; j++) {
       const a = blobs[i], b = blobs[j];
       const ax = a.cx * scale, ay = a.cy * scale;
       const bx = b.cx * scale, by = b.cy * scale;
       const dist = Math.sqrt((a.cx - b.cx) ** 2 + (a.cy - b.cy) ** 2);
-      // Line
       ctx.strokeStyle = 'rgba(255,255,255,0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx, by);
       ctx.stroke();
-      // Distance at midpoint
       const mx = (ax + bx) / 2, my = (ay + by) / 2;
-      ctx.font = `8px ${mono()}`;
+      ctx.font = `8px ${f}`;
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -395,16 +449,48 @@ function drawTrailDots(ctx, scale) {
   }
 }
 
+function drawMetrics(ctx, blobs, procW, procH, canvasW, canvasH) {
+  const f = mono();
+  const pad = 8;
+  const lineH = 13;
+  const headerH = 20;
+  const panelH = headerH + blobs.length * lineH + pad;
+  const panelW = 200;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(pad, pad, panelW, panelH);
+
+  ctx.font = `9px ${f}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText('DATA', pad + 6, pad + 4);
+
+  for (let i = 0; i < blobs.length; i++) {
+    const b = blobs[i];
+    const xn = (b.cx / procW).toFixed(2);
+    const yn = (b.cy / procH).toFixed(2);
+    const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy).toFixed(1);
+    const color = getBlobColor(b.id);
+    const y = pad + headerH + i * lineH;
+
+    ctx.fillStyle = color;
+    ctx.fillText(`${b.id}`, pad + 6, y);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText(`${xn},${yn}`, pad + 30, y);
+    ctx.fillText(`${spd}`, pad + 110, y);
+    ctx.fillText(`${Math.floor(b.area)}`, pad + 150, y);
+  }
+}
+
 function drawHUD(ctx, blobs, w, h) {
   const f = mono();
   const pad = 8;
-  // Bottom-left HUD line
   ctx.font = `9px ${f}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  const str = `TRACK  F:${String(frameNum).padStart(5, '0')}  OBJ:${blobs.length}`;
-  ctx.fillText(str, pad, h - pad);
+  ctx.fillText(`TRACK  F:${String(frameNum).padStart(5, '0')}  OBJ:${blobs.length}`, pad, h - pad);
   // Frame border
   ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = 1;
@@ -430,6 +516,10 @@ function render() {
   const display = getDisplay();
   const showConnections = getConnections();
   const showLabels = getLabels();
+  const showMetrics = getMetrics();
+  const showGrid = getGrid();
+  const boxStyle = getBoxStyle();
+  const dotted = getDotted();
   const thresh = +els.threshold.value;
   const blurRadius = +els.blur.value;
   const minArea = +els.minArea.value;
@@ -438,6 +528,9 @@ function render() {
   const cont = +els.contrast.value;
   const invert = getInvert();
   const trailLen = +els.trailLength.value;
+  const smoothing = +els.smoothing.value;
+  const thickness = +els.thickness.value;
+  const fillAlpha = +els.fillOpacity.value / 100;
 
   let frameData = srcData.data;
   if (blurRadius > 0) {
@@ -464,9 +557,7 @@ function render() {
   }
 
   const detected = labelConnectedComponents(mask, procW, procH, minArea, maxBlobs);
-  const blobs = trackBlobs(detected);
-
-  // Update trails
+  const blobs = trackBlobs(detected, smoothing);
   updateTrails(blobs, Math.max(1, trailLen));
 
   // Output scaling
@@ -480,7 +571,6 @@ function render() {
   ctx.imageSmoothingEnabled = false;
 
   if (display === 'mask') {
-    // Debug mask view with simple overlay
     maskCanvas.width = procW;
     maskCanvas.height = procH;
     const maskImgData = maskCtx.createImageData(procW, procH);
@@ -493,7 +583,6 @@ function render() {
     }
     maskCtx.putImageData(maskImgData, 0, 0);
     ctx.drawImage(maskCanvas, 0, 0, outW, outH);
-    // Simple bbox outlines on mask
     for (const blob of blobs) {
       const color = getBlobColor(blob.id);
       ctx.strokeStyle = color;
@@ -507,8 +596,6 @@ function render() {
     }
   } else {
     // --- Data-viz art overlay ---
-
-    // Source image
     ctx.drawImage(sampCanvas, 0, 0, outW, outH);
 
     // Darken for contrast
@@ -518,14 +605,18 @@ function render() {
     // Scanlines
     drawScanlines(ctx, outW, outH);
 
+    // Grid
+    if (showGrid) drawGrid(ctx, outW, outH);
+
     // Trails
     if (trailLen > 0) drawTrailDots(ctx, scale);
 
     // Connections
-    if (showConnections) drawConnections(ctx, blobs, scale);
+    if (showConnections) drawConnections(ctx, blobs, scale, dotted);
 
     // Per-blob overlays
     const bracketPad = 5;
+    const useBrackets = boxStyle === 'brackets';
     for (const blob of blobs) {
       const color = getBlobColor(blob.id);
       const bx = blob.minX * scale - bracketPad;
@@ -533,19 +624,24 @@ function render() {
       const bw = (blob.maxX - blob.minX + 1) * scale + bracketPad * 2;
       const bh = (blob.maxY - blob.minY + 1) * scale + bracketPad * 2;
 
-      // Subtle fill inside brackets
-      ctx.fillStyle = colorWithAlpha(color, 0.06);
-      ctx.fillRect(bx, by, bw, bh);
+      // Fill
+      if (fillAlpha > 0) {
+        ctx.fillStyle = colorWithAlpha(color, fillAlpha);
+        ctx.fillRect(bx, by, bw, bh);
+      }
 
-      // Corner brackets
-      drawCornerBrackets(ctx, bx, by, bw, bh, color, 14);
+      // Bounding box
+      drawBoundingBox(ctx, bx, by, bw, bh, color, thickness, useBrackets, dotted);
 
-      // Crosshair at centroid
+      // Crosshair
       drawCrosshair(ctx, blob.cx * scale, blob.cy * scale, 10, color);
 
       // Data label
       if (showLabels) drawDataLabel(ctx, blob, scale, color, outW, outH);
     }
+
+    // Metrics panel
+    if (showMetrics) drawMetrics(ctx, blobs, procW, procH, outW, outH);
 
     // HUD
     drawHUD(ctx, blobs, outW, outH);

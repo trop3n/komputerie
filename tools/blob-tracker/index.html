@@ -5,138 +5,232 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blob Tracker</title>
   <link rel="stylesheet" href="../../css/style.css">
+  <style>
+    .tab-content { display: none; flex-direction: column; gap: 16px; }
+    .tab-content.active { display: flex; }
+  </style>
 </head>
 <body>
   <div class="tool-layout" id="app">
     <aside class="tool-sidebar">
       <a href="../../" class="back-link">&larr; Tools</a>
       <h1>Blob Tracker</h1>
-      <div id="source-controls"></div>
-      <hr class="separator">
+
       <div class="control-group">
-        <label>Mode</label>
-        <div class="radio-row" id="mode-radios">
-          <input type="radio" name="mode" id="mode-threshold" value="threshold" checked>
-          <label for="mode-threshold">Threshold</label>
-          <input type="radio" name="mode" id="mode-bg-sub" value="bg-sub">
-          <label for="mode-bg-sub">BG Sub</label>
-          <input type="radio" name="mode" id="mode-color" value="color">
-          <label for="mode-color">Color</label>
+        <div class="radio-row" id="tab-radios">
+          <input type="radio" name="tab" id="tab-video" value="video" checked>
+          <label for="tab-video">Video</label>
+          <input type="radio" name="tab" id="tab-tracking" value="tracking">
+          <label for="tab-tracking">Track</label>
+          <input type="radio" name="tab" id="tab-style" value="style">
+          <label for="tab-style">Style</label>
+          <input type="radio" name="tab" id="tab-text" value="text">
+          <label for="tab-text">Text</label>
+          <input type="radio" name="tab" id="tab-lines" value="lines">
+          <label for="tab-lines">Lines</label>
         </div>
       </div>
-      <hr class="separator">
-      <div class="control-group">
-        <label>Threshold</label>
-        <div class="range-row">
-          <input type="range" id="threshold" min="0" max="255" value="128">
-          <span class="range-value" data-for="threshold">128</span>
+
+      <!-- Video tab -->
+      <div class="tab-content active" data-tab="video">
+        <div id="source-controls"></div>
+        <hr class="separator">
+        <div class="control-group">
+          <label>Brightness</label>
+          <div class="range-row">
+            <input type="range" id="brightness" min="-100" max="100" value="0">
+            <span class="range-value" data-for="brightness">0</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Contrast</label>
+          <div class="range-row">
+            <input type="range" id="contrast" min="-100" max="100" value="0">
+            <span class="range-value" data-for="contrast">0</span>
+          </div>
         </div>
       </div>
-      <div class="control-group">
-        <label>Invert</label>
-        <div class="radio-row" id="invert-radios">
-          <input type="radio" name="invert" id="invert-off" value="off" checked>
-          <label for="invert-off">Off</label>
-          <input type="radio" name="invert" id="invert-on" value="on">
-          <label for="invert-on">On</label>
+
+      <!-- Tracking tab -->
+      <div class="tab-content" data-tab="tracking">
+        <div class="control-group">
+          <label>Mode</label>
+          <div class="radio-row" id="mode-radios">
+            <input type="radio" name="mode" id="mode-threshold" value="threshold" checked>
+            <label for="mode-threshold">Threshold</label>
+            <input type="radio" name="mode" id="mode-bg-sub" value="bg-sub">
+            <label for="mode-bg-sub">BG Sub</label>
+            <input type="radio" name="mode" id="mode-color" value="color">
+            <label for="mode-color">Color</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Threshold</label>
+          <div class="range-row">
+            <input type="range" id="threshold" min="0" max="255" value="128">
+            <span class="range-value" data-for="threshold">128</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Invert</label>
+          <div class="radio-row" id="invert-radios">
+            <input type="radio" name="invert" id="invert-off" value="off" checked>
+            <label for="invert-off">Off</label>
+            <input type="radio" name="invert" id="invert-on" value="on">
+            <label for="invert-on">On</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Blur</label>
+          <div class="range-row">
+            <input type="range" id="blur" min="0" max="10" value="2" step="1">
+            <span class="range-value" data-for="blur">2</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Min Area</label>
+          <div class="range-row">
+            <input type="range" id="min-area" min="10" max="5000" value="100" step="10">
+            <span class="range-value" data-for="min-area">100</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Max Blobs</label>
+          <div class="range-row">
+            <input type="range" id="max-blobs" min="1" max="50" value="20">
+            <span class="range-value" data-for="max-blobs">20</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Smoothing</label>
+          <div class="range-row">
+            <input type="range" id="smoothing" min="0" max="0.8" value="0.3" step="0.1">
+            <span class="range-value" data-for="smoothing">0.3</span>
+          </div>
+        </div>
+        <hr class="separator">
+        <div class="control-group" id="color-controls" style="display:none">
+          <label>Hue Center</label>
+          <div class="range-row">
+            <input type="range" id="hue-center" min="0" max="360" value="0">
+            <span class="range-value" data-for="hue-center">0</span>
+          </div>
+        </div>
+        <div class="control-group" id="hue-range-group" style="display:none">
+          <label>Hue Range</label>
+          <div class="range-row">
+            <input type="range" id="hue-range" min="5" max="180" value="30">
+            <span class="range-value" data-for="hue-range">30</span>
+          </div>
+        </div>
+        <div class="control-group" id="sat-min-group" style="display:none">
+          <label>Min Saturation</label>
+          <div class="range-row">
+            <input type="range" id="sat-min" min="0" max="100" value="30">
+            <span class="range-value" data-for="sat-min">30</span>
+          </div>
+        </div>
+        <div class="control-group" id="bg-controls" style="display:none">
+          <button class="btn" id="btn-capture-bg">Capture Background</button>
         </div>
       </div>
-      <div class="control-group">
-        <label>Blur</label>
-        <div class="range-row">
-          <input type="range" id="blur" min="0" max="10" value="2" step="1">
-          <span class="range-value" data-for="blur">2</span>
+
+      <!-- Style tab -->
+      <div class="tab-content" data-tab="style">
+        <div class="control-group">
+          <label>Display</label>
+          <div class="radio-row" id="display-radios">
+            <input type="radio" name="display" id="display-overlay" value="overlay" checked>
+            <label for="display-overlay">Overlay</label>
+            <input type="radio" name="display" id="display-mask" value="mask">
+            <label for="display-mask">Mask</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Style</label>
+          <div class="radio-row" id="box-style-radios">
+            <input type="radio" name="box-style" id="box-brackets" value="brackets" checked>
+            <label for="box-brackets">Brackets</label>
+            <input type="radio" name="box-style" id="box-full" value="full">
+            <label for="box-full">Full</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Dotted</label>
+          <div class="radio-row" id="dotted-radios">
+            <input type="radio" name="dotted" id="dotted-off" value="off" checked>
+            <label for="dotted-off">Off</label>
+            <input type="radio" name="dotted" id="dotted-on" value="on">
+            <label for="dotted-on">On</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Thickness</label>
+          <div class="range-row">
+            <input type="range" id="thickness" min="1" max="5" value="2" step="0.5">
+            <span class="range-value" data-for="thickness">2</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Fill Opacity</label>
+          <div class="range-row">
+            <input type="range" id="fill-opacity" min="0" max="30" value="6">
+            <span class="range-value" data-for="fill-opacity">6</span>
+          </div>
         </div>
       </div>
-      <div class="control-group">
-        <label>Min Area</label>
-        <div class="range-row">
-          <input type="range" id="min-area" min="10" max="5000" value="100" step="10">
-          <span class="range-value" data-for="min-area">100</span>
+
+      <!-- Text tab -->
+      <div class="tab-content" data-tab="text">
+        <div class="control-group">
+          <label>Labels</label>
+          <div class="radio-row" id="labels-radios">
+            <input type="radio" name="labels" id="labels-on" value="on" checked>
+            <label for="labels-on">On</label>
+            <input type="radio" name="labels" id="labels-off" value="off">
+            <label for="labels-off">Off</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Metrics</label>
+          <div class="radio-row" id="metrics-radios">
+            <input type="radio" name="metrics" id="metrics-off" value="off" checked>
+            <label for="metrics-off">Off</label>
+            <input type="radio" name="metrics" id="metrics-on" value="on">
+            <label for="metrics-on">On</label>
+          </div>
         </div>
       </div>
-      <div class="control-group">
-        <label>Max Blobs</label>
-        <div class="range-row">
-          <input type="range" id="max-blobs" min="1" max="50" value="20">
-          <span class="range-value" data-for="max-blobs">20</span>
+
+      <!-- Lines tab -->
+      <div class="tab-content" data-tab="lines">
+        <div class="control-group">
+          <label>Connections</label>
+          <div class="radio-row" id="connections-radios">
+            <input type="radio" name="connections" id="connections-on" value="on" checked>
+            <label for="connections-on">On</label>
+            <input type="radio" name="connections" id="connections-off" value="off">
+            <label for="connections-off">Off</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Trail Length</label>
+          <div class="range-row">
+            <input type="range" id="trail-length" min="0" max="60" value="20">
+            <span class="range-value" data-for="trail-length">20</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Grid</label>
+          <div class="radio-row" id="grid-radios">
+            <input type="radio" name="grid" id="grid-off" value="off" checked>
+            <label for="grid-off">Off</label>
+            <input type="radio" name="grid" id="grid-on" value="on">
+            <label for="grid-on">On</label>
+          </div>
         </div>
       </div>
-      <hr class="separator">
-      <div class="control-group">
-        <label>Brightness</label>
-        <div class="range-row">
-          <input type="range" id="brightness" min="-100" max="100" value="0">
-          <span class="range-value" data-for="brightness">0</span>
-        </div>
-      </div>
-      <div class="control-group">
-        <label>Contrast</label>
-        <div class="range-row">
-          <input type="range" id="contrast" min="-100" max="100" value="0">
-          <span class="range-value" data-for="contrast">0</span>
-        </div>
-      </div>
-      <hr class="separator">
-      <div class="control-group" id="color-controls" style="display:none">
-        <label>Hue Center</label>
-        <div class="range-row">
-          <input type="range" id="hue-center" min="0" max="360" value="0">
-          <span class="range-value" data-for="hue-center">0</span>
-        </div>
-      </div>
-      <div class="control-group" id="hue-range-group" style="display:none">
-        <label>Hue Range</label>
-        <div class="range-row">
-          <input type="range" id="hue-range" min="5" max="180" value="30">
-          <span class="range-value" data-for="hue-range">30</span>
-        </div>
-      </div>
-      <div class="control-group" id="sat-min-group" style="display:none">
-        <label>Min Saturation</label>
-        <div class="range-row">
-          <input type="range" id="sat-min" min="0" max="100" value="30">
-          <span class="range-value" data-for="sat-min">30</span>
-        </div>
-      </div>
-      <div class="control-group" id="bg-controls" style="display:none">
-        <button class="btn" id="btn-capture-bg">Capture Background</button>
-      </div>
-      <hr class="separator">
-      <div class="control-group">
-        <label>Display</label>
-        <div class="radio-row" id="display-radios">
-          <input type="radio" name="display" id="display-overlay" value="overlay" checked>
-          <label for="display-overlay">Overlay</label>
-          <input type="radio" name="display" id="display-mask" value="mask">
-          <label for="display-mask">Mask</label>
-        </div>
-      </div>
-      <div class="control-group">
-        <label>Connections</label>
-        <div class="radio-row" id="connections-radios">
-          <input type="radio" name="connections" id="connections-on" value="on" checked>
-          <label for="connections-on">On</label>
-          <input type="radio" name="connections" id="connections-off" value="off">
-          <label for="connections-off">Off</label>
-        </div>
-      </div>
-      <div class="control-group">
-        <label>Labels</label>
-        <div class="radio-row" id="labels-radios">
-          <input type="radio" name="labels" id="labels-on" value="on" checked>
-          <label for="labels-on">On</label>
-          <input type="radio" name="labels" id="labels-off" value="off">
-          <label for="labels-off">Off</label>
-        </div>
-      </div>
-      <div class="control-group">
-        <label>Trail Length</label>
-        <div class="range-row">
-          <input type="range" id="trail-length" min="0" max="60" value="20">
-          <span class="range-value" data-for="trail-length">20</span>
-        </div>
-      </div>
+
       <hr class="separator">
       <div class="control-group">
         <label id="blob-count">Blobs: 0</label>
