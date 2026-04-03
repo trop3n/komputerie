@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythm</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Rhythm</h1>
+      <div id="source-controls"></div>
+      <div class="control-group">
+        <label>Source Influence</label>
+        <div class="range-row">
+          <input type="range" id="source-influence" min="0" max="100" value="0">
+          <span class="range-value" data-for="source-influence">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Waveform</label>
+        <div class="radio-row" id="wave-mode-radios">
+          <input type="radio" name="wave-mode" id="wm-noise" value="noise" checked>
+          <label for="wm-noise">Noise</label>
+          <input type="radio" name="wave-mode" id="wm-sine" value="sine">
+          <label for="wm-sine">Sine</label>
+          <input type="radio" name="wave-mode" id="wm-square" value="square">
+          <label for="wm-square">Sq</label>
+          <input type="radio" name="wave-mode" id="wm-saw" value="sawtooth">
+          <label for="wm-saw">Saw</label>
+          <input type="radio" name="wave-mode" id="wm-tri" value="triangle">
+          <label for="wm-tri">Tri</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Line Count</label>
+        <div class="range-row">
+          <input type="range" id="line-count" min="1" max="80" value="20">
+          <span class="range-value" data-for="line-count">20</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Spacing</label>
+        <div class="range-row">
+          <input type="range" id="spacing" min="1" max="50" value="8">
+          <span class="range-value" data-for="spacing">8</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Amplitude</label>
+        <div class="range-row">
+          <input type="range" id="amplitude" min="0" max="300" value="100">
+          <span class="range-value" data-for="amplitude">100</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Frequency</label>
+        <div class="range-row">
+          <input type="range" id="frequency" min="0.001" max="0.1" value="0.01" step="0.001">
+          <span class="range-value" data-for="frequency">0.01</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Speed</label>
+        <div class="range-row">
+          <input type="range" id="speed" min="0" max="5" value="1" step="0.1">
+          <span class="range-value" data-for="speed">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Phase Offset</label>
+        <div class="range-row">
+          <input type="range" id="phase-offset" min="0" max="1" value="0.1" step="0.05">
+          <span class="range-value" data-for="phase-offset">0.1</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Stroke Weight</label>
+        <div class="range-row">
+          <input type="range" id="stroke-weight" min="0.5" max="10" value="2" step="0.5">
+          <span class="range-value" data-for="stroke-weight">2</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Stroke Opacity</label>
+        <div class="range-row">
+          <input type="range" id="stroke-opacity" min="10" max="100" value="100" step="5">
+          <span class="range-value" data-for="stroke-opacity">100</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cap</label>
+        <div class="radio-row" id="cap-radios">
+          <input type="radio" name="cap" id="cap-round" value="round" checked>
+          <label for="cap-round">Round</label>
+          <input type="radio" name="cap" id="cap-square" value="square">
+          <label for="cap-square">Square</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Gradient</label>
+        <div class="radio-row" id="gradient-radios">
+          <input type="radio" name="gradient" id="grad-linear" value="linear" checked>
+          <label for="grad-linear">Linear</label>
+          <input type="radio" name="gradient" id="grad-radial" value="radial">
+          <label for="grad-radial">Radial</label>
+          <input type="radio" name="gradient" id="grad-wave" value="wave">
+          <label for="grad-wave">Wave</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Hue Start</label>
+        <div class="range-row">
+          <input type="range" id="hue-start" min="0" max="360" value="200" step="5">
+          <span class="range-value" data-for="hue-start">200</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Hue Range</label>
+        <div class="range-row">
+          <input type="range" id="hue-range" min="0" max="360" value="60" step="5">
+          <span class="range-value" data-for="hue-range">60</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Saturation</label>
+        <div class="range-row">
+          <input type="range" id="saturation" min="0" max="100" value="85" step="5">
+          <span class="range-value" data-for="saturation">85</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Lightness</label>
+        <div class="range-row">
+          <input type="range" id="lightness" min="0" max="100" value="65" step="5">
+          <span class="range-value" data-for="lightness">65</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cycle Colors</label>
+        <div class="radio-row" id="cycle-radios">
+          <input type="radio" name="cycle" id="cycle-off" value="off" checked>
+          <label for="cycle-off">Off</label>
+          <input type="radio" name="cycle" id="cycle-on" value="on">
+          <label for="cycle-on">On</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cycle Speed</label>
+        <div class="range-row">
+          <input type="range" id="cycle-speed" min="0.1" max="5" value="0.5" step="0.1">
+          <span class="range-value" data-for="cycle-speed">0.5</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Background</label>
+        <input type="color" id="background" value="#050505" style="width:100%;height:28px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer">
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="rhythm.js"></script>
+</body>
+</html>

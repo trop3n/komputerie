@@ -104,21 +104,25 @@ onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); 
 - **Luminance formula**: `0.299 * r + 0.587 * g + 0.114 * b`
 - **Caching**: Expensive computations cached (Bayer matrices, parsed color palettes)
 
-## Current Tools (11)
+## Current Tools (15)
 
-| Tool | Dir | Standalone |
-|------|-----|:----------:|
-| Blob Tracker | `tools/blob-tracker/` | |
-| Cellular Automata | `tools/cellular-automata/` | ✓ |
-| Dithering | `tools/dithering/` | |
-| Flipdigits Player | `tools/flipdigits/` | ✓ |
-| Gradient Map | `tools/gradient-map/` | |
-| Pixel Flow | `tools/pixel-flow/` | |
-| Pixelator | `tools/pixelator/` | |
-| Shapes | `tools/shapes/` | |
-| SRT to Video | `tools/srt2video/` | ✓ |
-| Text | `tools/text/` | |
-| Video to MIDI | `tools/video2midi/` | |
+| Tool | Dir | Standalone | Notes |
+|------|-----|:----------:|-------|
+| Blob Tracker | `tools/blob-tracker/` | | |
+| Boids | `tools/boids/` | | Flocking sim with flow field from source |
+| Cellular Automata | `tools/cellular-automata/` | ✓ | |
+| Dithering | `tools/dithering/` | | |
+| Flake | `tools/flake/` | | Tile patterns with noise rotation, blend modes |
+| Flipdigits Player | `tools/flipdigits/` | ✓ | |
+| Gradient Map | `tools/gradient-map/` | | |
+| Pixel Flow | `tools/pixel-flow/` | | |
+| Pixelator | `tools/pixelator/` | | |
+| Refract | `tools/refract/` | | WebGL 2-pass (displacement + grid refraction) |
+| Rhythm | `tools/rhythm/` | | Waveform patterns with simplex noise |
+| Shapes | `tools/shapes/` | | |
+| SRT to Video | `tools/srt2video/` | ✓ | |
+| Text | `tools/text/` | | |
+| Video to MIDI | `tools/video2midi/` | | |
 
 ## Adding a New Tool
 

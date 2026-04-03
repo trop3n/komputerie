@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flake</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Flake</h1>
+      <div id="source-controls"></div>
+      <div class="control-group">
+        <label>Source Influence</label>
+        <div class="range-row">
+          <input type="range" id="source-influence" min="0" max="100" value="0">
+          <span class="range-value" data-for="source-influence">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Cells X</label>
+        <div class="range-row">
+          <input type="range" id="cells-x" min="2" max="40" value="10">
+          <span class="range-value" data-for="cells-x">10</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cells Y</label>
+        <div class="range-row">
+          <input type="range" id="cells-y" min="2" max="40" value="10">
+          <span class="range-value" data-for="cells-y">10</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Seed</label>
+        <div class="range-row">
+          <input type="range" id="seed" min="0" max="100" value="0" step="1">
+          <span class="range-value" data-for="seed">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cell Offset X</label>
+        <div class="range-row">
+          <input type="range" id="cell-offset-x" min="0" max="1" value="0" step="0.05">
+          <span class="range-value" data-for="cell-offset-x">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cell Offset Y</label>
+        <div class="range-row">
+          <input type="range" id="cell-offset-y" min="0" max="1" value="0" step="0.05">
+          <span class="range-value" data-for="cell-offset-y">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Cell Rotation</label>
+        <div class="range-row">
+          <input type="range" id="cell-rotation" min="0" max="360" value="0" step="1">
+          <span class="range-value" data-for="cell-rotation">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Shape</label>
+        <select id="shape-type">
+          <option value="circle">Circle</option>
+          <option value="oval">Oval</option>
+          <option value="square">Square</option>
+          <option value="triangle">Triangle</option>
+          <option value="star">Star</option>
+          <option value="cross">Cross</option>
+          <option value="heart">Heart</option>
+          <option value="arrow">Arrow</option>
+          <option value="flower">Flower</option>
+          <option value="flake" selected>Flake</option>
+          <option value="spark">Spark</option>
+          <option value="flash">Flash</option>
+          <option value="clips">Clips</option>
+          <option value="checker">Checker</option>
+          <option value="quadCircle">Quad Circle</option>
+          <option value="threeDots">Three Dots</option>
+          <option value="pinholeIndex">Pinhole</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Scale</label>
+        <div class="range-row">
+          <input type="range" id="shape-scale" min="0.05" max="2" value="0.75" step="0.05">
+          <span class="range-value" data-for="shape-scale">0.75</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Scale Power</label>
+        <div class="range-row">
+          <input type="range" id="scale-power" min="0" max="3" value="0" step="0.1">
+          <span class="range-value" data-for="scale-power">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Scaling Ease</label>
+        <select id="scaling-ease">
+          <option value="none" selected>None</option>
+          <option value="linear">Linear</option>
+          <option value="sineIn">Sine In</option>
+          <option value="sineOut">Sine Out</option>
+          <option value="quadIn">Quad In</option>
+          <option value="quadOut">Quad Out</option>
+          <option value="quadInOut">Quad In-Out</option>
+          <option value="cubicIn">Cubic In</option>
+          <option value="cubicOut">Cubic Out</option>
+          <option value="cubicInOut">Cubic In-Out</option>
+          <option value="expoIn">Expo In</option>
+          <option value="expoOut">Expo Out</option>
+          <option value="expoInOut">Expo In-Out</option>
+          <option value="circIn">Circ In</option>
+          <option value="circOut">Circ Out</option>
+          <option value="circInOut">Circ In-Out</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Base Rotation</label>
+        <div class="range-row">
+          <input type="range" id="base-rotation" min="0" max="360" value="0" step="1">
+          <span class="range-value" data-for="base-rotation">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Angle Multiplier</label>
+        <div class="range-row">
+          <input type="range" id="angle-mult" min="0" max="4" value="1" step="0.1">
+          <span class="range-value" data-for="angle-mult">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Grid Map X</label>
+        <div class="range-row">
+          <input type="range" id="grid-map-x" min="0.5" max="20" value="6" step="0.5">
+          <span class="range-value" data-for="grid-map-x">6</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Grid Map Y</label>
+        <div class="range-row">
+          <input type="range" id="grid-map-y" min="0.5" max="20" value="6" step="0.5">
+          <span class="range-value" data-for="grid-map-y">6</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Symmetry</label>
+        <div class="radio-row" id="symmetry-radios">
+          <input type="radio" name="symmetry" id="sym-std" value="standard" checked>
+          <label for="sym-std">Standard</label>
+          <input type="radio" name="symmetry" id="sym-mirror" value="mirrored">
+          <label for="sym-mirror">Mirrored</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Noise Layers</label>
+        <div class="range-row">
+          <input type="range" id="freq-layers" min="1" max="8" value="4">
+          <span class="range-value" data-for="freq-layers">4</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Base Frequency</label>
+        <div class="range-row">
+          <input type="range" id="freq-base" min="0.01" max="0.5" value="0.07" step="0.01">
+          <span class="range-value" data-for="freq-base">0.07</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Amplify</label>
+        <div class="range-row">
+          <input type="range" id="freq-amplify" min="0.1" max="3" value="0.5" step="0.1">
+          <span class="range-value" data-for="freq-amplify">0.5</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Freq Mode</label>
+        <div class="radio-row" id="freq-mode-radios">
+          <input type="radio" name="freq-mode" id="fm-cos" value="cos" checked>
+          <label for="fm-cos">Cos</label>
+          <input type="radio" name="freq-mode" id="fm-sin" value="sin">
+          <label for="fm-sin">Sin</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Branch Amount</label>
+        <div class="range-row">
+          <input type="range" id="branch-amount" min="0" max="12" value="1" step="0.1">
+          <span class="range-value" data-for="branch-amount">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Freq Easing</label>
+        <select id="freq-easing">
+          <option value="none" selected>None</option>
+          <option value="linear">Linear</option>
+          <option value="sineIn">Sine In</option>
+          <option value="sineOut">Sine Out</option>
+          <option value="quadIn">Quad In</option>
+          <option value="quadOut">Quad Out</option>
+          <option value="cubicIn">Cubic In</option>
+          <option value="cubicOut">Cubic Out</option>
+          <option value="expoIn">Expo In</option>
+          <option value="expoOut">Expo Out</option>
+          <option value="circIn">Circ In</option>
+          <option value="circOut">Circ Out</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Swirl</label>
+        <div class="radio-row" id="swirl-mode-radios">
+          <input type="radio" name="swirl-mode" id="sw-none" value="none" checked>
+          <label for="sw-none">Off</label>
+          <input type="radio" name="swirl-mode" id="sw-rotary" value="rotary">
+          <label for="sw-rotary">Rotary</label>
+          <input type="radio" name="swirl-mode" id="sw-wave" value="wave">
+          <label for="sw-wave">Wave</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Swirl Frequency</label>
+        <div class="range-row">
+          <input type="range" id="swirl-freq" min="0.1" max="5" value="1" step="0.1">
+          <span class="range-value" data-for="swirl-freq">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Swirl Amplify</label>
+        <div class="range-row">
+          <input type="range" id="swirl-amplify" min="0" max="5" value="0" step="0.1">
+          <span class="range-value" data-for="swirl-amplify">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Swirl Base</label>
+        <div class="range-row">
+          <input type="range" id="swirl-base" min="0" max="1" value="0" step="0.05">
+          <span class="range-value" data-for="swirl-base">0</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Mask</label>
+        <div class="radio-row" id="mask-radios">
+          <input type="radio" name="mask" id="mask-none" value="none" checked>
+          <label for="mask-none">Off</label>
+          <input type="radio" name="mask" id="mask-param" value="parametric">
+          <label for="mask-param">Parametric</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Mask Branches</label>
+        <div class="range-row">
+          <input type="range" id="mask-branches" min="1" max="12" value="6">
+          <span class="range-value" data-for="mask-branches">6</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Roundness</label>
+        <div class="range-row">
+          <input type="range" id="mask-round" min="0" max="5" value="0" step="0.1">
+          <span class="range-value" data-for="mask-round">0</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Mask Inner</label>
+        <div class="range-row">
+          <input type="range" id="mask-inner" min="0" max="0.5" value="0.1" step="0.01">
+          <span class="range-value" data-for="mask-inner">0.1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Mask Outer</label>
+        <div class="range-row">
+          <input type="range" id="mask-outer" min="0.3" max="1.5" value="0.9" step="0.01">
+          <span class="range-value" data-for="mask-outer">0.9</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Motion</label>
+        <div class="radio-row" id="motion-radios">
+          <input type="radio" name="motion" id="mot-none" value="none" checked>
+          <label for="mot-none">Off</label>
+          <input type="radio" name="motion" id="mot-noise" value="noiseLoop">
+          <label for="mot-noise">Noise</label>
+          <input type="radio" name="motion" id="mot-scale" value="scalingLoop">
+          <label for="mot-scale">Scale</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Motion Speed</label>
+        <div class="range-row">
+          <input type="range" id="motion-speed" min="0.1" max="3" value="0.5" step="0.1">
+          <span class="range-value" data-for="motion-speed">0.5</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Motion Amplify</label>
+        <div class="range-row">
+          <input type="range" id="motion-amplify" min="0" max="100" value="20" step="1">
+          <span class="range-value" data-for="motion-amplify">20</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Render</label>
+        <div class="radio-row" id="render-radios">
+          <input type="radio" name="render" id="r-fill" value="fill" checked>
+          <label for="r-fill">Fill</label>
+          <input type="radio" name="render" id="r-stroke" value="stroke">
+          <label for="r-stroke">Stroke</label>
+          <input type="radio" name="render" id="r-mixed" value="mixed">
+          <label for="r-mixed">Mixed</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Color Mode</label>
+        <div class="radio-row" id="color-mode-radios">
+          <input type="radio" name="color-mode" id="cm-solid" value="solidColor">
+          <label for="cm-solid">Solid</label>
+          <input type="radio" name="color-mode" id="cm-seq" value="paletteSequence">
+          <label for="cm-seq">Sequence</label>
+          <input type="radio" name="color-mode" id="cm-trans" value="paletteTransition" checked>
+          <label for="cm-trans">Transition</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Palette</label>
+        <div class="color-swatch-row" id="palette-swatches">
+          <input type="color" value="#6c5ce7">
+          <input type="color" value="#ffffff">
+          <input type="color" value="#b2bec3">
+          <input type="color" value="#fdcb6e">
+          <button class="btn" id="btn-add-color" style="padding:0 6px;font-size:14px">+</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Blend Mode</label>
+        <select id="blend-mode">
+          <option value="source-over">Normal</option>
+          <option value="multiply" selected>Multiply</option>
+          <option value="screen">Screen</option>
+          <option value="overlay">Overlay</option>
+          <option value="darken">Darken</option>
+          <option value="lighten">Lighten</option>
+          <option value="color-dodge">Color Dodge</option>
+          <option value="color-burn">Color Burn</option>
+          <option value="hard-light">Hard Light</option>
+          <option value="soft-light">Soft Light</option>
+          <option value="difference">Difference</option>
+          <option value="exclusion">Exclusion</option>
+          <option value="lighter">Lighter</option>
+          <option value="xor">XOR</option>
+        </select>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Background</label>
+        <input type="color" id="background" value="#ffffff" style="width:100%;height:28px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer">
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="flake.js"></script>
+</body>
+</html>

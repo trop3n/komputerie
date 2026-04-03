@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refract</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Refract</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Displace Mode</label>
+        <div class="radio-row" id="displace-radios">
+          <input type="radio" name="displace" id="d-box" value="box" checked>
+          <label for="d-box">Box</label>
+          <input type="radio" name="displace" id="d-flow" value="flow">
+          <label for="d-flow">Flow</label>
+          <input type="radio" name="displace" id="d-sine" value="sine">
+          <label for="d-sine">Sine</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Seed</label>
+        <div class="range-row">
+          <input type="range" id="seed" min="0" max="1000" value="601" step="1">
+          <span class="range-value" data-for="seed">601</span>
+        </div>
+      </div>
+      <div id="box-controls">
+        <div class="control-group">
+          <label>Box Amp X</label>
+          <div class="range-row">
+            <input type="range" id="box-amp-x" min="0" max="20" value="3" step="0.1">
+            <span class="range-value" data-for="box-amp-x">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Amp Y</label>
+          <div class="range-row">
+            <input type="range" id="box-amp-y" min="0" max="20" value="3" step="0.1">
+            <span class="range-value" data-for="box-amp-y">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Freq X</label>
+          <div class="range-row">
+            <input type="range" id="box-freq-x" min="1" max="40" value="8" step="1">
+            <span class="range-value" data-for="box-freq-x">8</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Freq Y</label>
+          <div class="range-row">
+            <input type="range" id="box-freq-y" min="1" max="40" value="8" step="1">
+            <span class="range-value" data-for="box-freq-y">8</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Speed X</label>
+          <div class="range-row">
+            <input type="range" id="box-speed-x" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="box-speed-x">0</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Box Speed Y</label>
+          <div class="range-row">
+            <input type="range" id="box-speed-y" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="box-speed-y">0</span>
+          </div>
+        </div>
+      </div>
+      <div id="flow-controls" style="display:none">
+        <div class="control-group">
+          <label>Complexity</label>
+          <div class="range-row">
+            <input type="range" id="flow-complexity" min="1" max="8" value="3">
+            <span class="range-value" data-for="flow-complexity">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Frequency</label>
+          <div class="range-row">
+            <input type="range" id="flow-freq" min="0.5" max="20" value="3" step="0.5">
+            <span class="range-value" data-for="flow-freq">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Flow Amp X</label>
+          <div class="range-row">
+            <input type="range" id="flow-amp-x" min="0" max="20" value="5" step="0.1">
+            <span class="range-value" data-for="flow-amp-x">5</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Flow Amp Y</label>
+          <div class="range-row">
+            <input type="range" id="flow-amp-y" min="0" max="20" value="5" step="0.1">
+            <span class="range-value" data-for="flow-amp-y">5</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Flow Speed X</label>
+          <div class="range-row">
+            <input type="range" id="flow-speed-x" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="flow-speed-x">0</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Flow Speed Y</label>
+          <div class="range-row">
+            <input type="range" id="flow-speed-y" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="flow-speed-y">0</span>
+          </div>
+        </div>
+      </div>
+      <div id="sine-controls" style="display:none">
+        <div class="control-group">
+          <label>Sine Amp X</label>
+          <div class="range-row">
+            <input type="range" id="sine-amp-x" min="0" max="20" value="3" step="0.1">
+            <span class="range-value" data-for="sine-amp-x">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Sine Amp Y</label>
+          <div class="range-row">
+            <input type="range" id="sine-amp-y" min="0" max="20" value="3" step="0.1">
+            <span class="range-value" data-for="sine-amp-y">3</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Sine Freq X</label>
+          <div class="range-row">
+            <input type="range" id="sine-freq-x" min="1" max="40" value="8" step="1">
+            <span class="range-value" data-for="sine-freq-x">8</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Sine Freq Y</label>
+          <div class="range-row">
+            <input type="range" id="sine-freq-y" min="1" max="40" value="8" step="1">
+            <span class="range-value" data-for="sine-freq-y">8</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Sine Speed X</label>
+          <div class="range-row">
+            <input type="range" id="sine-speed-x" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="sine-speed-x">0</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Sine Speed Y</label>
+          <div class="range-row">
+            <input type="range" id="sine-speed-y" min="0" max="100" value="0" step="1">
+            <span class="range-value" data-for="sine-speed-y">0</span>
+          </div>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Refraction</label>
+        <div class="radio-row" id="refract-radios">
+          <input type="radio" name="refract" id="ref-none" value="none" checked>
+          <label for="ref-none">Off</label>
+          <input type="radio" name="refract" id="ref-grid" value="grid">
+          <label for="ref-grid">Grid</label>
+        </div>
+      </div>
+      <div id="grid-controls" style="display:none">
+        <div class="control-group">
+          <label>Grid Amount X</label>
+          <div class="range-row">
+            <input type="range" id="grid-amt-x" min="2" max="60" value="20" step="1">
+            <span class="range-value" data-for="grid-amt-x">20</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Grid Amount Y</label>
+          <div class="range-row">
+            <input type="range" id="grid-amt-y" min="2" max="60" value="20" step="1">
+            <span class="range-value" data-for="grid-amt-y">20</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Skew X</label>
+          <div class="range-row">
+            <input type="range" id="skew-x" min="0" max="5" value="1.25" step="0.05">
+            <span class="range-value" data-for="skew-x">1.25</span>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Skew Y</label>
+          <div class="range-row">
+            <input type="range" id="skew-y" min="0" max="5" value="1.25" step="0.05">
+            <span class="range-value" data-for="skew-y">1.25</span>
+          </div>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Content Scale X</label>
+        <div class="range-row">
+          <input type="range" id="content-scale-x" min="0.1" max="3" value="1" step="0.05">
+          <span class="range-value" data-for="content-scale-x">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Content Scale Y</label>
+        <div class="range-row">
+          <input type="range" id="content-scale-y" min="0.1" max="3" value="1" step="0.05">
+          <span class="range-value" data-for="content-scale-y">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Animate</label>
+        <div class="radio-row" id="animate-radios">
+          <input type="radio" name="animate" id="anim-off" value="off" checked>
+          <label for="anim-off">Off</label>
+          <input type="radio" name="animate" id="anim-on" value="on">
+          <label for="anim-on">On</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <canvas id="canvas"></canvas>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit Fullscreen &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="refract.js"></script>
+</body>
+</html>

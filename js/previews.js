@@ -302,6 +302,171 @@ const effects = {
         ctx.fillText(b.id, b.x, b.y - b.r - 3);
       }
     }
+  },
+
+  rhythm: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, 0, W, H);
+      const lineCount = 14, spacing = 8, t = f * 0.04;
+      const startY = (H - (lineCount - 1) * spacing) / 2;
+      for (let i = 0; i < lineCount; i++) {
+        const baseY = startY + i * spacing;
+        const phase = i * 0.3 + t;
+        const hue = (200 + (i / (lineCount - 1)) * 80) % 360;
+        ctx.strokeStyle = `hsl(${hue},85%,65%)`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 2) {
+          const v = Math.sin(x * 0.04 + phase) * 18
+            + Math.sin(x * 0.02 - t * 0.7 + i * 0.5) * 10;
+          const y = baseY + v;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+  },
+
+  flake: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      const cells = 8, cellSize = W / cells;
+      const numRows = Math.ceil(H / cellSize) + 1;
+      const t = f * 0.01;
+      const colors = ['#6c5ce7','#ffffff','#b2bec3','#fdcb6e'];
+      ctx.globalCompositeOperation = 'multiply';
+      for (let row = 0; row < numRows; row++) {
+        for (let col = 0; col <= cells; col++) {
+          const cx = col * cellSize + cellSize / 2;
+          const cy = row * cellSize + cellSize / 2;
+          const tc = col % cells, tr = row % cells;
+          const tnx = (tc - cells / 2 + 0.5) / (cells / 2);
+          const tny = (tr - cells / 2 + 0.5) / (cells / 2);
+          const dist = Math.min(Math.sqrt(tnx * tnx + tny * tny) / Math.SQRT2, 1);
+          const size = cellSize * 0.7 * (1 - dist);
+          if (size < 1) continue;
+          const angle = Math.atan2(tny, tnx) + Math.sin(col * 0.5 + row * 0.3 + t) * 1.5;
+          const ci = Math.min(Math.floor(dist * (colors.length - 1)), colors.length - 2);
+          const frac = dist * (colors.length - 1) - ci;
+          const c1 = hexRgb(colors[ci]), c2 = hexRgb(colors[ci + 1]);
+          ctx.fillStyle = `rgb(${c1[0] + (c2[0] - c1[0]) * frac | 0},${c1[1] + (c2[1] - c1[1]) * frac | 0},${c1[2] + (c2[2] - c1[2]) * frac | 0})`;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle);
+          // Draw flake arms
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.lineWidth = Math.max(0.5, size * 0.05);
+          const arm = size * 0.45;
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(a) * arm, Math.sin(a) * arm);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  },
+
+  refract: {
+    init() {
+      // Pre-generate a gradient image as pixel data
+      const img = new Uint8Array(W * H * 4);
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          const t = (x + y) / (W + H);
+          img[i] = Math.floor(t * 255);
+          img[i + 1] = Math.floor(t * 180);
+          img[i + 2] = Math.floor(255 - t * 128);
+          img[i + 3] = 255;
+        }
+      }
+      return { img };
+    },
+    draw(ctx, f, s) {
+      // Simulate box displacement with shifting grid
+      const freqX = 8, freqY = 8, amp = 0.12;
+      const t = f * 0.015;
+      const imgData = ctx.createImageData(W, H);
+      const out = imgData.data;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const oi = (y * W + x) * 4;
+          // Cell hash displacement
+          const cx = Math.floor((x / W + t * 0.05) * freqX);
+          const cy = Math.floor((y / H) * freqY);
+          const hash1 = Math.sin(cx * 127.1 + cy * 311.7 + 601) * 43758.5453 % 1;
+          const hash2 = Math.sin(cx * 127.1 + cy * 311.7 + 601 + 31.41) * 43758.5453 % 1;
+          let sx = x + hash1 * amp * W;
+          let sy = y + hash2 * amp * H;
+          // Mirror wrap
+          sx = Math.abs(((sx / W) % 2 + 2) % 2 - 1) * W;
+          sy = Math.abs(((sy / H) % 2 + 2) % 2 - 1) * H;
+          sx = Math.max(0, Math.min(W - 1, Math.floor(sx)));
+          sy = Math.max(0, Math.min(H - 1, Math.floor(sy)));
+          const si = (sy * W + sx) * 4;
+          out[oi] = s.img[si];
+          out[oi + 1] = s.img[si + 1];
+          out[oi + 2] = s.img[si + 2];
+          out[oi + 3] = 255;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+  },
+
+  boids: {
+    init() {
+      const boids = Array.from({ length: 60 }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+      }));
+      return { boids };
+    },
+    draw(ctx, f, s) {
+      ctx.fillStyle = 'rgba(5, 5, 5, 0.08)';
+      ctx.fillRect(0, 0, W, H);
+      const bs = s.boids;
+      for (const b of bs) {
+        // Simple flocking: steer toward center, match velocity, avoid crowds
+        let sx = 0, sy = 0, ax = 0, ay = 0, cx = 0, cy = 0, n = 0;
+        for (const o of bs) {
+          if (o === b) continue;
+          const dx = o.x - b.x, dy = o.y - b.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 40) { n++; cx += o.x; cy += o.y; ax += o.vx; ay += o.vy; if (d < 14) { sx -= dx / d; sy -= dy / d; } }
+        }
+        if (n > 0) {
+          b.vx += (cx / n - b.x) * 0.003 + (ax / n - b.vx) * 0.05 + sx * 0.15;
+          b.vy += (cy / n - b.y) * 0.003 + (ay / n - b.vy) * 0.05 + sy * 0.15;
+        }
+        const sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (sp > 3) { b.vx *= 3 / sp; b.vy *= 3 / sp; }
+        b.x += b.vx; b.y += b.vy;
+        if (b.x < 0) b.x += W; if (b.x >= W) b.x -= W;
+        if (b.y < 0) b.y += H; if (b.y >= H) b.y -= H;
+        const t = Math.min(sp / 3, 1);
+        const hue = 200 + t * 140;
+        ctx.fillStyle = `hsl(${hue},85%,65%)`;
+        const a = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(a);
+        ctx.beginPath();
+        ctx.moveTo(0, -3.5);
+        ctx.lineTo(-2, 2);
+        ctx.lineTo(2, 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
   }
 };
 
