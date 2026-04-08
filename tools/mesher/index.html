@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesher</title>
+  <link rel="stylesheet" href="../../css/style.css">
+  <style>
+    #canvas-stack { position: relative; width: 100%; height: 100%; }
+    #canvas-stack canvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      image-rendering: auto;
+    }
+    #gl-canvas { z-index: 0; }
+    #ui-canvas { z-index: 1; cursor: crosshair; }
+    .tool-layout.output #ui-canvas { display: none; }
+    .tool-layout.output .tool-sidebar { display: none; }
+    .tool-layout.output .fullscreen-exit { display: flex; }
+    .surface-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 6px; border: 1px solid var(--border);
+      background: var(--surface); border-radius: 3px; cursor: pointer;
+      font-size: 12px; font-family: var(--mono);
+    }
+    .surface-item.active { border-color: var(--accent); background: var(--surface-2); }
+    .surface-item .surface-name { flex: 1; }
+    .surface-item button {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; font-size: 14px; padding: 0 2px;
+    }
+    .surface-item button:hover { color: var(--text); }
+    .surface-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="tool-layout" id="app">
+    <aside class="tool-sidebar">
+      <a href="../../" class="back-link">&larr; Tools</a>
+      <h1>Mesher</h1>
+      <div id="source-controls"></div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Surfaces</label>
+        <div class="btn-row" style="margin-bottom:4px">
+          <button class="btn" id="btn-add-surface">+ Add</button>
+          <button class="btn" id="btn-dup-surface">Duplicate</button>
+        </div>
+        <div class="surface-list" id="surface-list"></div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Warp Mode</label>
+        <div class="radio-row" id="warp-radios">
+          <input type="radio" name="warp" id="w-quad" value="quad" checked>
+          <label for="w-quad">Quad</label>
+          <input type="radio" name="warp" id="w-bezier" value="bezier">
+          <label for="w-bezier">Bezier</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Grid X</label>
+        <div class="range-row">
+          <input type="range" id="grid-x" min="1" max="8" value="1">
+          <span class="range-value" data-for="grid-x">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Grid Y</label>
+        <div class="range-row">
+          <input type="range" id="grid-y" min="1" max="8" value="1">
+          <span class="range-value" data-for="grid-y">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Subdivisions</label>
+        <div class="range-row">
+          <input type="range" id="subdivisions" min="4" max="32" value="16">
+          <span class="range-value" data-for="subdivisions">16</span>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Opacity</label>
+        <div class="range-row">
+          <input type="range" id="surface-opacity" min="0" max="1" value="1" step="0.05">
+          <span class="range-value" data-for="surface-opacity">1</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Show Grid</label>
+        <div class="radio-row" id="grid-vis-radios">
+          <input type="radio" name="grid-vis" id="gv-on" value="on" checked>
+          <label for="gv-on">On</label>
+          <input type="radio" name="grid-vis" id="gv-off" value="off">
+          <label for="gv-off">Off</label>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Snap to Grid</label>
+        <div class="radio-row" id="snap-radios">
+          <input type="radio" name="snap" id="snap-off" value="off" checked>
+          <label for="snap-off">Off</label>
+          <input type="radio" name="snap" id="snap-on" value="on">
+          <label for="snap-on">On</label>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="control-group">
+        <label>Configs</label>
+        <div class="btn-row">
+          <button class="btn" id="btn-save-config">Save</button>
+          <button class="btn" id="btn-load-config">Load</button>
+          <button class="btn" id="btn-reset">Reset</button>
+        </div>
+      </div>
+      <hr class="separator">
+      <div class="btn-row">
+        <button class="btn" id="btn-fullscreen">Fullscreen</button>
+        <button class="btn" id="btn-output">Output Mode</button>
+        <button class="btn" id="btn-save">Save PNG</button>
+      </div>
+    </aside>
+    <div class="tool-canvas-area">
+      <div id="canvas-stack">
+        <canvas id="gl-canvas"></canvas>
+        <canvas id="ui-canvas"></canvas>
+      </div>
+      <button class="fullscreen-exit" id="btn-exit-fs">Exit &middot; Esc</button>
+    </div>
+  </div>
+  <script type="module" src="mesher.js"></script>
+</body>
+</html>

@@ -104,7 +104,7 @@ onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); 
 - **Luminance formula**: `0.299 * r + 0.587 * g + 0.114 * b`
 - **Caching**: Expensive computations cached (Bayer matrices, parsed color palettes)
 
-## Current Tools (15)
+## Current Tools (16)
 
 | Tool | Dir | Standalone | Notes |
 |------|-----|:----------:|-------|
@@ -115,6 +115,7 @@ onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); 
 | Flake | `tools/flake/` | | Tile patterns with noise rotation, blend modes |
 | Flipdigits Player | `tools/flipdigits/` | ✓ | |
 | Gradient Map | `tools/gradient-map/` | | |
+| Mesher | `tools/mesher/` | | WebGL projection mapping with quad/bezier mesh warp |
 | Pixel Flow | `tools/pixel-flow/` | | |
 | Pixelator | `tools/pixelator/` | | |
 | Refract | `tools/refract/` | | WebGL 2-pass (displacement + grid refraction) |

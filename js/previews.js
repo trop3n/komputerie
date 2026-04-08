@@ -422,6 +422,73 @@ const effects = {
     }
   },
 
+  mesher: {
+    init() {
+      // 4 corner points for a warped quad
+      return {
+        corners: [
+          { x: 20, y: 15, bx: 0.3, by: 0.2 },
+          { x: W - 20, y: 20, bx: -0.2, by: 0.3 },
+          { x: W - 25, y: H - 15, bx: -0.3, by: -0.2 },
+          { x: 25, y: H - 20, bx: 0.2, by: -0.3 },
+        ],
+      };
+    },
+    draw(ctx, f, s) {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+      const t = f * 0.02;
+      const c = s.corners;
+      // Animate corners gently
+      const pts = c.map((p, i) => ({
+        x: p.x + Math.sin(t + i * 1.5) * 8,
+        y: p.y + Math.cos(t * 0.8 + i * 2) * 6,
+      }));
+      // Draw gradient-filled warped grid
+      const gridN = 8;
+      for (let gy = 0; gy < gridN; gy++) {
+        for (let gx = 0; gx < gridN; gx++) {
+          const u0 = gx / gridN, u1 = (gx + 1) / gridN;
+          const v0 = gy / gridN, v1 = (gy + 1) / gridN;
+          const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+          const bilerp = (u, v) => {
+            const top = lerp(pts[0], pts[1], u);
+            const bot = lerp(pts[3], pts[2], u);
+            return lerp(top, bot, v);
+          };
+          const p00 = bilerp(u0, v0), p10 = bilerp(u1, v0);
+          const p01 = bilerp(u0, v1), p11 = bilerp(u1, v1);
+          const lum = (u0 + v0) / 2;
+          const r = 60 + lum * 140 | 0, g = 100 + lum * 80 | 0, b = 180 - lum * 80 | 0;
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.beginPath();
+          ctx.moveTo(p00.x, p00.y);
+          ctx.lineTo(p10.x, p10.y);
+          ctx.lineTo(p11.x, p11.y);
+          ctx.lineTo(p01.x, p01.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      // Draw grid lines
+      ctx.strokeStyle = 'rgba(0,255,150,0.35)';
+      ctx.lineWidth = 0.5;
+      const lerp2 = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      const bilerp2 = (u, v) => lerp2(lerp2(pts[0], pts[1], u), lerp2(pts[3], pts[2], u), v);
+      for (let i = 0; i <= gridN; i++) {
+        ctx.beginPath();
+        for (let j = 0; j <= gridN; j++) { const p = bilerp2(j / gridN, i / gridN); j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        ctx.stroke();
+        ctx.beginPath();
+        for (let j = 0; j <= gridN; j++) { const p = bilerp2(i / gridN, j / gridN); j === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        ctx.stroke();
+      }
+      // Corner dots
+      ctx.fillStyle = '#00ff96';
+      for (const p of pts) { ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    }
+  },
+
   boids: {
     init() {
       const boids = Array.from({ length: 60 }, () => ({
