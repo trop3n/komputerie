@@ -78,6 +78,13 @@ function sendNoteOff(note, channel) {
   midiOutput.send([0x80 | channel, note, 0]);
 }
 
+function flushAllNotes() {
+  if (!midiOutput) { prevNotes = []; return; }
+  const channel = +midiChannelSel.value;
+  for (const prev of prevNotes) sendNoteOff(prev.note, channel);
+  prevNotes = [];
+}
+
 function render() {
   if (!mediaSource.ready) return;
 
@@ -188,7 +195,10 @@ function loop() {
   animId = requestAnimationFrame(loop);
 }
 
-onChange(() => { if (!animId) loop(); });
+onChange(() => { flushAllNotes(); if (!animId) loop(); });
+
+window.addEventListener('beforeunload', flushAllNotes);
+midiChannelSel.addEventListener('change', flushAllNotes);
 
 function toggleFullscreen() { app.classList.toggle('fullscreen'); }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);

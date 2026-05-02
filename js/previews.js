@@ -552,10 +552,12 @@ export function initPreviews() {
 
   let frame = 0;
   function loop() {
-    frame++;
-    if (frame % 2 === 0) {
-      const f = frame / 2;
-      for (const c of cards) c.effect.draw(c.ctx, f, c.state);
+    if (document.visibilityState !== 'hidden') {
+      frame++;
+      if (frame % 2 === 0) {
+        const f = frame / 2;
+        for (const c of cards) c.effect.draw(c.ctx, f, c.state);
+      }
     }
     requestAnimationFrame(loop);
   }

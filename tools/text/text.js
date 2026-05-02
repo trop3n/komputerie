@@ -1,4 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
+import { parseColor } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -38,12 +39,6 @@ customTextEl.addEventListener('input', render);
 
 // Color swatches
 const swatchContainer = document.getElementById('color-swatches');
-function parseColor(str) {
-  const c = document.createElement('canvas'); c.width = c.height = 1;
-  const x = c.getContext('2d'); x.fillStyle = str; x.fillRect(0, 0, 1, 1);
-  const d = x.getImageData(0, 0, 1, 1).data;
-  return [d[0], d[1], d[2]];
-}
 function invalidatePalette() { cachedPalette = null; }
 function getPalette() { if (!cachedPalette) cachedPalette = colors.map(parseColor); return cachedPalette; }
 

@@ -1,8 +1,14 @@
 import { createSourceSelector } from '../../js/media-source.js';
+import { parseColor } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const ctx = canvas.getContext('2d');
 const app = document.getElementById('app');
+
+const procCanvas = document.createElement('canvas');
+const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
+
+const MAX_PROCESS_WIDTH = 960;
 
 const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
 
@@ -39,16 +45,6 @@ document.querySelectorAll('input[type="range"]').forEach(r => {
 
 // Color swatches
 const swatchContainer = document.getElementById('color-swatches');
-
-function parseColor(hex) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 1;
-  const x = c.getContext('2d');
-  x.fillStyle = hex;
-  x.fillRect(0, 0, 1, 1);
-  const d = x.getImageData(0, 0, 1, 1).data;
-  return [d[0], d[1], d[2]];
-}
 
 function buildLUT() {
   const parsed = colors.map(parseColor);
@@ -120,35 +116,44 @@ function render() {
 
   const sw = mediaSource.width;
   const sh = mediaSource.height;
-  canvas.width = sw;
-  canvas.height = sh;
+  if (!sw || !sh) return;
 
-  ctx.drawImage(mediaSource.drawable, 0, 0, sw, sh);
-  const imageData = ctx.getImageData(0, 0, sw, sh);
+  const scale = Math.min(1, MAX_PROCESS_WIDTH / sw);
+  const pw = Math.max(1, Math.round(sw * scale));
+  const ph = Math.max(1, Math.round(sh * scale));
+
+  if (procCanvas.width !== pw || procCanvas.height !== ph) {
+    procCanvas.width = pw;
+    procCanvas.height = ph;
+  }
+  if (canvas.width !== pw || canvas.height !== ph) {
+    canvas.width = pw;
+    canvas.height = ph;
+  }
+
+  procCtx.drawImage(mediaSource.drawable, 0, 0, pw, ph);
+  const imageData = procCtx.getImageData(0, 0, pw, ph);
   const data = imageData.data;
 
   const bright = +brightnessEl.value;
   const cont = +contrastEl.value;
   const mixAmt = +mixEl.value / 100;
   const f = (259 * (cont + 255)) / (255 * (259 - cont));
+  const brightScaled = bright * 2.55;
 
   for (let i = 0; i < data.length; i += 4) {
-    let r = data[i], g = data[i + 1], b = data[i + 2];
+    const r = data[i], g = data[i + 1], b = data[i + 2];
 
-    // Luminance
     let lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    // Brightness + contrast on luminance
-    lum += bright * 2.55;
+    lum += brightScaled;
     lum = f * (lum - 128) + 128;
-    lum = Math.max(0, Math.min(255, lum)) | 0;
+    lum = lum < 0 ? 0 : lum > 255 ? 255 : lum | 0;
 
-    // Map through gradient LUT
-    const mr = gradientLUT[lum * 3];
-    const mg = gradientLUT[lum * 3 + 1];
-    const mb = gradientLUT[lum * 3 + 2];
+    const li = lum * 3;
+    const mr = gradientLUT[li];
+    const mg = gradientLUT[li + 1];
+    const mb = gradientLUT[li + 2];
 
-    // Mix with original
     data[i] = r + (mr - r) * mixAmt;
     data[i + 1] = g + (mg - g) * mixAmt;
     data[i + 2] = b + (mb - b) * mixAmt;

@@ -133,7 +133,13 @@ function createSurface(name, gridX = 1, gridY = 1, warpMode = 'quad') {
     points,
     opacity: 1,
     subdivisions: 16,
+    _mesh: null,
+    _meshDirty: true,
   };
+}
+
+function markMeshDirty(surface) {
+  if (surface) surface._meshDirty = true;
 }
 
 function getActiveSurface() {
@@ -222,6 +228,14 @@ function buildMesh(surface) {
   };
 }
 
+function getMesh(surface) {
+  if (!surface._mesh || surface._meshDirty) {
+    surface._mesh = buildMesh(surface);
+    surface._meshDirty = false;
+  }
+  return surface._mesh;
+}
+
 // --- Render all surfaces via WebGL ---
 
 function updateSourceTexture() {
@@ -242,7 +256,7 @@ function renderGL() {
   gl.uniform2f(uRes, CW, CH);
 
   for (const surface of surfaces) {
-    const mesh = buildMesh(surface);
+    const mesh = getMesh(surface);
 
     gl.uniform1f(uOpacity, surface.opacity);
 
@@ -426,6 +440,7 @@ uiCanvas.addEventListener('mousemove', (e) => {
     }
     surface.points[dragPoint].x = nx;
     surface.points[dragPoint].y = ny;
+    markMeshDirty(surface);
   } else {
     hoveredPoint = findNearestPoint(x, y);
   }
@@ -533,6 +548,7 @@ function rebuildSurfaceGrid(surface, newGridX, newGridY) {
   surface.gridX = newGridX;
   surface.gridY = newGridY;
   surface.points = newPoints;
+  markMeshDirty(surface);
 }
 
 // --- UI event wiring ---
@@ -558,7 +574,7 @@ document.getElementById('grid-y').addEventListener('change', () => {
 
 document.getElementById('subdivisions').addEventListener('input', () => {
   const s = getActiveSurface();
-  if (s) s.subdivisions = +document.getElementById('subdivisions').value;
+  if (s) { s.subdivisions = +document.getElementById('subdivisions').value; markMeshDirty(s); }
 });
 
 document.getElementById('surface-opacity').addEventListener('input', () => {
@@ -569,7 +585,7 @@ document.getElementById('surface-opacity').addEventListener('input', () => {
 document.querySelectorAll('#warp-radios input').forEach(r => {
   r.addEventListener('change', () => {
     const s = getActiveSurface();
-    if (s) s.warpMode = r.value;
+    if (s) { s.warpMode = r.value; markMeshDirty(s); }
   });
 });
 
@@ -593,6 +609,8 @@ document.getElementById('btn-dup-surface').addEventListener('click', () => {
     id: nextSurfaceId++,
     name: src.name + ' copy',
     points: src.points.map(p => ({ x: p.x + 30, y: p.y + 30 })),
+    _mesh: null,
+    _meshDirty: true,
   };
   surfaces.push(dup);
   setActiveSurface(dup.id);
@@ -603,6 +621,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   if (!s) return;
   const fresh = createSurface(s.name, s.gridX, s.gridY, s.warpMode);
   s.points = fresh.points;
+  markMeshDirty(s);
 });
 
 document.getElementById('btn-save-config').addEventListener('click', () => {
@@ -629,6 +648,8 @@ document.getElementById('btn-load-config').addEventListener('click', () => {
         opacity: d.opacity ?? 1,
         subdivisions: d.subdivisions || 16,
         points: d.points,
+        _mesh: null,
+        _meshDirty: true,
       });
     }
     if (surfaces.length > 0) setActiveSurface(surfaces[0].id);

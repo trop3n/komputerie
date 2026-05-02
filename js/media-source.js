@@ -7,10 +7,18 @@ export class MediaSource {
     this.source = null;
     this.type = null;
     this.stream = null;
+    this._objectUrl = null;
     this._video = document.createElement('video');
     this._video.playsInline = true;
     this._video.muted = true;
     this._video.loop = true;
+  }
+
+  _releaseObjectUrl() {
+    if (this._objectUrl) {
+      URL.revokeObjectURL(this._objectUrl);
+      this._objectUrl = null;
+    }
   }
 
   get width() {
@@ -53,6 +61,7 @@ export class MediaSource {
   async useVideo(file) {
     this.stop();
     const url = URL.createObjectURL(file);
+    this._objectUrl = url;
     this._video.srcObject = null;
     this._video.src = url;
     await this._video.play();
@@ -62,6 +71,8 @@ export class MediaSource {
 
   async useImage(file) {
     this.stop();
+    const url = URL.createObjectURL(file);
+    this._objectUrl = url;
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
@@ -69,8 +80,11 @@ export class MediaSource {
         this.source = img;
         resolve();
       };
-      img.onerror = reject;
-      img.src = URL.createObjectURL(file);
+      img.onerror = (e) => {
+        this._releaseObjectUrl();
+        reject(e);
+      };
+      img.src = url;
     });
   }
 
@@ -82,6 +96,8 @@ export class MediaSource {
     this._video.pause();
     this._video.srcObject = null;
     this._video.removeAttribute('src');
+    this._video.load();
+    this._releaseObjectUrl();
     this.source = null;
     this.type = null;
   }

@@ -1,3 +1,5 @@
+import { parseColor as parseHex } from '../../js/color.js';
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const app = document.getElementById('app');
@@ -5,6 +7,7 @@ const app = document.getElementById('app');
 // State
 let gridW = 128, gridH = 128;
 let grid, nextGrid;
+let imageData = null;
 let paused = false;
 let animId = null;
 let lastFrame = 0;
@@ -77,13 +80,6 @@ let customColors = ['#000000', '#00ff00', '#ffffff'];
 const customColorsGroup = document.getElementById('custom-colors-group');
 const swatchContainer = document.getElementById('color-swatches');
 
-function parseHex(hex) {
-  const c = document.createElement('canvas'); c.width = c.height = 1;
-  const x = c.getContext('2d'); x.fillStyle = hex; x.fillRect(0, 0, 1, 1);
-  const d = x.getImageData(0, 0, 1, 1).data;
-  return [d[0], d[1], d[2]];
-}
-
 function customPalette(val) {
   const parsed = customColors.map(parseHex);
   if (parsed.length < 2) return [val, val, val];
@@ -140,6 +136,9 @@ function initGrid() {
   nextGrid = createGrid(gridW, gridH);
   canvas.width = gridW;
   canvas.height = gridH;
+  imageData = ctx.createImageData(gridW, gridH);
+  const d = imageData.data;
+  for (let i = 3; i < d.length; i += 4) d[i] = 255;
 }
 
 function randomize() {
@@ -305,14 +304,13 @@ function step() {
 }
 
 function draw() {
-  const imageData = ctx.createImageData(gridW, gridH);
   const data = imageData.data;
   for (let i = 0; i < grid.length; i++) {
     const [r, g, b] = getColor(grid[i]);
-    data[i * 4] = r;
-    data[i * 4 + 1] = g;
-    data[i * 4 + 2] = b;
-    data[i * 4 + 3] = 255;
+    const j = i * 4;
+    data[j] = r;
+    data[j + 1] = g;
+    data[j + 2] = b;
   }
   ctx.putImageData(imageData, 0, 0);
 }

@@ -1,3 +1,5 @@
+import { parseColor } from '../../js/color.js';
+
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const app = document.getElementById('app');
@@ -95,16 +97,12 @@ function render() {
   const cont = +contrastEl.value;
 
   // Background
-  let bgR, bgG, bgB;
-  {
-    const tmp = document.createElement('canvas'); tmp.width = tmp.height = 1;
-    const tx = tmp.getContext('2d'); tx.fillStyle = bgColorEl.value; tx.fillRect(0,0,1,1);
-    const d = tx.getImageData(0,0,1,1).data;
-    const f = (259 * (cont + 255)) / (255 * (259 - cont));
-    bgR = Math.max(0, Math.min(255, f * (d[0] + bright * 2.55 - 128) + 128)) | 0;
-    bgG = Math.max(0, Math.min(255, f * (d[1] + bright * 2.55 - 128) + 128)) | 0;
-    bgB = Math.max(0, Math.min(255, f * (d[2] + bright * 2.55 - 128) + 128)) | 0;
-  }
+  const [r0, g0, b0] = parseColor(bgColorEl.value);
+  const f = (259 * (cont + 255)) / (255 * (259 - cont));
+  const brightOff = bright * 2.55;
+  const bgR = Math.max(0, Math.min(255, f * (r0 + brightOff - 128) + 128)) | 0;
+  const bgG = Math.max(0, Math.min(255, f * (g0 + brightOff - 128) + 128)) | 0;
+  const bgB = Math.max(0, Math.min(255, f * (b0 + brightOff - 128) + 128)) | 0;
   ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
   ctx.fillRect(0, 0, W, H);
 

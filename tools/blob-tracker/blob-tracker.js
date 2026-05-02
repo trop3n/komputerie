@@ -410,7 +410,7 @@ function drawDataLabel(ctx, blob, scale, color, canvasW, canvasH) {
 function drawConnections(ctx, blobs, scale, dotted) {
   if (blobs.length < 2) return;
   if (dotted) ctx.setLineDash([3, 4]);
-  else ctx.setLineDash([3, 4]);
+  else ctx.setLineDash([]);
   const f = mono();
   for (let i = 0; i < blobs.length; i++) {
     for (let j = i + 1; j < blobs.length; j++) {

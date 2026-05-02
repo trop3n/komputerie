@@ -1,4 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
+import { parseColor } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -56,10 +57,8 @@ function sampleSource() {
 }
 
 function parseHexColor(hex) {
-  const c = document.createElement('canvas'); c.width = c.height = 1;
-  const x = c.getContext('2d'); x.fillStyle = hex; x.fillRect(0, 0, 1, 1);
-  const d = x.getImageData(0, 0, 1, 1).data;
-  return { r: d[0], g: d[1], b: d[2] };
+  const [r, g, b] = parseColor(hex);
+  return { r, g, b };
 }
 
 function update() {
