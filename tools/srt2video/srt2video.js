@@ -75,15 +75,14 @@ function getActiveSubtitle(time) {
 }
 
 function getNextGap(time) {
-  // Find gap between current and next subtitle
-  let currentEnd = 0;
+  let lastEnd = 0;
   let nextStart = Infinity;
   for (const sub of subtitles) {
-    if (time >= sub.start && time <= sub.end) currentEnd = sub.end;
+    if (sub.end <= time && sub.end > lastEnd) lastEnd = sub.end;
     if (sub.start > time && sub.start < nextStart) nextStart = sub.start;
   }
-  if (currentEnd > 0 && nextStart < Infinity) {
-    return { start: currentEnd, end: nextStart, duration: nextStart - currentEnd };
+  if (lastEnd > 0 && nextStart < Infinity) {
+    return { start: lastEnd, end: nextStart, duration: nextStart - lastEnd };
   }
   return null;
 }

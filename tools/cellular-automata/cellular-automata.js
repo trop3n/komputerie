@@ -385,12 +385,21 @@ function brushDraw(gx, gy) {
       setCell(gx + dx, gy + dy, 255);
     }
   } else if (brush === 'smooth') {
+    const tmp = new Uint8Array(grid);
     for (let dy = -half; dy <= half; dy++) {
       for (let dx = -half; dx <= half; dx++) {
         const cx = gx + dx, cy = gy + dy;
         if (cx >= 0 && cx < gridW && cy >= 0 && cy < gridH) {
           const avg = avgNeighbors(cx, cy);
-          grid[cy * gridW + cx] = Math.round((grid[cy * gridW + cx] + avg) / 2);
+          tmp[cy * gridW + cx] = Math.round((grid[cy * gridW + cx] + avg) / 2);
+        }
+      }
+    }
+    for (let dy = -half; dy <= half; dy++) {
+      for (let dx = -half; dx <= half; dx++) {
+        const cx = gx + dx, cy = gy + dy;
+        if (cx >= 0 && cx < gridW && cy >= 0 && cy < gridH) {
+          grid[cy * gridW + cx] = tmp[cy * gridW + cx];
         }
       }
     }
@@ -465,6 +474,7 @@ sizeSel.addEventListener('change', () => {
 });
 
 ruleSel.addEventListener('change', () => {
+  if (rule1DMap[ruleSel.value] !== undefined) grid.fill(0);
   row1D = 0;
 });
 

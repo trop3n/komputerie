@@ -204,7 +204,7 @@ function getLineColor(index, totalLines, time) {
 let sourceUpdateCounter = 0;
 
 function render() {
-  currentTime += (+els.speed.value) * 0.016;
+  currentTime += 0.016;
 
   // Update source for video/camera
   if (mediaSource.ready && mediaSource.type !== 'image') {

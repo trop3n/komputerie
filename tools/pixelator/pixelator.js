@@ -79,7 +79,7 @@ function render() {
 
       if (style === 'square') {
         ctx.fillStyle = color;
-        const gap = outlineW;
+        const gap = Math.min(outlineW, Math.min(cellW, cellH) * 0.49);
         ctx.fillRect(gx * cellW + gap, gy * cellH + gap, cellW - gap * 2, cellH - gap * 2);
       } else if (style === 'circle') {
         const radius = Math.min(cellW, cellH) * 0.45;

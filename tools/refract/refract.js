@@ -132,7 +132,7 @@ vec2 mirrorWrap(vec2 uv) {
 }
 
 void main() {
-  vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
+  vec2 uv = vTexCoord;
   vec2 cellSize = vec2(1.0 / u_gridAmtX, 1.0 / u_gridAmtY);
   vec2 cellIndex = floor(uv / cellSize);
   vec2 cellUV = fract(uv / cellSize);

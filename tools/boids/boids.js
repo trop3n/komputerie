@@ -145,7 +145,9 @@ class Boid {
 
     this.vel = this.vel.add(this.acc).limit(p.maxSpeed);
     if (this.vel.mag() < p.minSpeed) {
-      this.vel = this.vel.normalize().scale(p.minSpeed);
+      this.vel = this.vel.mag() > 0
+        ? this.vel.normalize().scale(p.minSpeed)
+        : Vec2.fromAngle(Math.random() * Math.PI * 2).scale(p.minSpeed);
     }
     this.pos = this.pos.add(this.vel);
   }
@@ -346,6 +348,7 @@ function render() {
   for (const boid of boids) {
     boid.update(boids, p);
     boid.handleBoundary(CW, CH, boundary);
+    boid.vel = boid.vel.limit(p.maxSpeed);
   }
 
   for (const boid of boids) {

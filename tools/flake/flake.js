@@ -409,7 +409,7 @@ function computeAngle(col, row, tnx, tny, dist, time, params) {
   let sx = tnx, sy = tny;
   if (symmetry === 'mirrored') { sx = Math.abs(tnx); sy = Math.abs(tny); }
 
-  const radial = Math.atan2(tny, tnx);
+  const radial = Math.atan2(sy, sx);
 
   // Multi-octave noise
   let noiseAcc = 0;

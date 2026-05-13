@@ -80,8 +80,7 @@ function sendNoteOff(note, channel) {
 
 function flushAllNotes() {
   if (!midiOutput) { prevNotes = []; return; }
-  const channel = +midiChannelSel.value;
-  for (const prev of prevNotes) sendNoteOff(prev.note, channel);
+  for (const prev of prevNotes) sendNoteOff(prev.note, prev.channel);
   prevNotes = [];
 }
 
@@ -151,7 +150,7 @@ function render() {
       const rawNote = baseNote + Math.floor(clampedLum * noteRange);
       const note = quantizeToScale(Math.min(127, rawNote), scaleName);
       const velocity = Math.min(127, Math.floor(clampedLum * 127));
-      currentNotes.push({ note, velocity, x: sampleX });
+      currentNotes.push({ note, velocity, x: sampleX, channel });
 
       // Note label
       const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -177,13 +176,13 @@ function render() {
     // Note off for previous notes not in current
     for (const prev of prevNotes) {
       if (!currentNotes.find(n => n.note === prev.note)) {
-        sendNoteOff(prev.note, channel);
+        sendNoteOff(prev.note, prev.channel);
       }
     }
     // Note on for new notes
     for (const curr of currentNotes) {
       if (!prevNotes.find(n => n.note === curr.note)) {
-        sendNoteOn(curr.note, curr.velocity, channel);
+        sendNoteOn(curr.note, curr.velocity, curr.channel);
       }
     }
   }
