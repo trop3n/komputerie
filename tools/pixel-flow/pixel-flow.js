@@ -1,4 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
+import { rgbaStr } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -220,7 +221,7 @@ function draw() {
 
     // Fade in young particles
     const alpha = Math.min(1, p.life / 10);
-    ctx.fillStyle = `rgba(${r|0},${g|0},${b|0},${alpha})`;
+    ctx.fillStyle = rgbaStr(r|0, g|0, b|0, alpha);
     ctx.fillRect(p.x - pSize * 0.5, p.y - pSize * 0.5, pSize, pSize);
   }
 }

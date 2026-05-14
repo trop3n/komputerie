@@ -233,12 +233,14 @@ function render() {
   const startY = (CH - (lineCount - 1) * spacing) / 2;
   ctx.lineCap = cap;
 
+  const lineColors = new Array(lineCount);
+  for (let i = 0; i < lineCount; i++) lineColors[i] = getLineColor(i, lineCount, currentTime);
+
   for (let i = 0; i < lineCount; i++) {
     const baseY = startY + i * spacing;
     const phase = i * phaseOffset + currentTime * speed;
-    const color = getLineColor(i, lineCount, currentTime);
 
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = lineColors[i];
     ctx.lineWidth = strokeWeight;
     ctx.globalAlpha = strokeOpacity;
     ctx.beginPath();

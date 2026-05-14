@@ -134,17 +134,19 @@ function render() {
     // Draw sample point indicator
     const dotSize = 4 + clampedLum * 8;
     const isActive = clampedLum > thresh;
+    const hue = 120 * clampedLum;
+    const activeFill = `hsl(${hue}, 80%, 50%)`;
+    const activeStroke = `hsla(${hue}, 80%, 50%, 0.3)`;
 
     ctx.beginPath();
     ctx.arc(sampleX, sampleY, dotSize, 0, Math.PI * 2);
-    ctx.fillStyle = isActive ? `hsl(${120 * clampedLum}, 80%, 50%)` : 'rgba(255,0,0,0.4)';
+    ctx.fillStyle = isActive ? activeFill : 'rgba(255,0,0,0.4)';
     ctx.fill();
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Draw vertical line from point
-    ctx.strokeStyle = isActive ? `hsla(${120 * clampedLum}, 80%, 50%, 0.3)` : 'rgba(255,0,0,0.1)';
+    ctx.strokeStyle = isActive ? activeStroke : 'rgba(255,0,0,0.1)';
     ctx.beginPath();
     ctx.moveTo(sampleX, 0);
     ctx.lineTo(sampleX, procH);

@@ -31,3 +31,16 @@ export function rgbStr(r, g, b) {
   _rgbCache.set(key, s);
   return s;
 }
+
+const _rgbaCache = new Map();
+
+export function rgbaStr(r, g, b, a) {
+  const qa = (a * 10 + 0.5) | 0;
+  const key = ((r << 16) | (g << 8) | b) * 11 + qa;
+  let s = _rgbaCache.get(key);
+  if (s) return s;
+  s = `rgba(${r},${g},${b},${(qa / 10).toFixed(1)})`;
+  if (_rgbaCache.size > 8192) _rgbaCache.clear();
+  _rgbaCache.set(key, s);
+  return s;
+}
