@@ -183,6 +183,10 @@ function getUniforms(prog, names) {
 
 const dispProg = createProgram(vertSrc, displaceFrag);
 const gridProg = createProgram(vertSrc, gridRefractFrag);
+if (!dispProg || !gridProg) {
+  document.body.textContent = 'WebGL shader compilation failed';
+  throw new Error('Shader compilation failed');
+}
 
 const dispUni = getUniforms(dispProg, [
   'u_image', 'u_resolution', 'u_displaceType', 'u_seed',

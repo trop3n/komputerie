@@ -58,9 +58,17 @@ function compileShader(type, src) {
 }
 
 const prog = gl.createProgram();
-gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vertSrc));
-gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fragSrc));
+const vs = compileShader(gl.VERTEX_SHADER, vertSrc);
+const fs = compileShader(gl.FRAGMENT_SHADER, fragSrc);
+if (!vs || !fs) { document.body.textContent = 'WebGL shader compilation failed'; throw new Error('Shader compile failed'); }
+gl.attachShader(prog, vs);
+gl.attachShader(prog, fs);
 gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  console.error(gl.getProgramInfoLog(prog));
+  document.body.textContent = 'WebGL program link failed';
+  throw new Error('Program link failed');
+}
 gl.useProgram(prog);
 
 const aPos = gl.getAttribLocation(prog, 'a_position');
@@ -640,14 +648,25 @@ document.getElementById('btn-load-config').addEventListener('click', () => {
     const data = JSON.parse(raw);
     surfaces = [];
     for (const d of data) {
+      const gridX = Math.max(1, Math.min(20, d.gridX | 0));
+      const gridY = Math.max(1, Math.min(20, d.gridY | 0));
+      const pts = Array.isArray(d.points) ? d.points : [];
+      const validPts = [];
+      const expected = (gridX + 1) * (gridY + 1);
+      for (let i = 0; i < expected; i++) {
+        const p = pts[i];
+        validPts.push(p && typeof p.x === 'number' && typeof p.y === 'number'
+          ? { x: Math.max(0, Math.min(CW, p.x)), y: Math.max(0, Math.min(CH, p.y)) }
+          : { x: CW * 0.5, y: CH * 0.5 });
+      }
       surfaces.push({
         id: nextSurfaceId++,
         name: d.name || 'Surface ' + nextSurfaceId,
-        gridX: d.gridX, gridY: d.gridY,
-        warpMode: d.warpMode || 'quad',
-        opacity: d.opacity ?? 1,
-        subdivisions: d.subdivisions || 16,
-        points: d.points,
+        gridX, gridY,
+        warpMode: d.warpMode === 'bezier' ? 'bezier' : 'quad',
+        opacity: typeof d.opacity === 'number' ? Math.max(0, Math.min(1, d.opacity)) : 1,
+        subdivisions: Math.max(1, Math.min(64, d.subdivisions | 0 || 16)),
+        points: validPts,
         _mesh: null,
         _meshDirty: true,
       });

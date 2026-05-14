@@ -232,22 +232,31 @@ function labelConnectedComponents(mask, w, h, minArea, maxBlobs) {
 
 function trackBlobs(detected, smoothing) {
   const maxDist = 60;
-  const used = new Set();
   const updated = [];
-  for (const prev of trackedBlobs) {
-    let best = null, bestDist = maxDist;
-    for (const det of detected) {
-      if (used.has(det)) continue;
-      const d = Math.sqrt((det.cx - prev.cx) ** 2 + (det.cy - prev.cy) ** 2);
-      if (d < bestDist) { bestDist = d; best = det; }
+  const matchedDet = new Set();
+
+  if (trackedBlobs.length > 0 && detected.length > 0) {
+    const dists = [];
+    for (let pi = 0; pi < trackedBlobs.length; pi++) {
+      for (let di = 0; di < detected.length; di++) {
+        const prev = trackedBlobs[pi], det = detected[di];
+        const d = Math.sqrt((det.cx - prev.cx) ** 2 + (det.cy - prev.cy) ** 2);
+        if (d < maxDist) dists.push({ pi, di, d });
+      }
     }
-    if (best) {
-      used.add(best);
+    dists.sort((a, b) => a.d - b.d);
+
+    const matchedPrev = new Set();
+    for (const { pi, di } of dists) {
+      if (matchedPrev.has(pi) || matchedDet.has(di)) continue;
+      matchedPrev.add(pi);
+      matchedDet.add(di);
+
+      const prev = trackedBlobs[pi];
+      const best = detected[di];
       best.id = prev.id;
-      // Velocity from raw detection before smoothing
       best.vx = best.cx - prev.cx;
       best.vy = best.cy - prev.cy;
-      // Motion smoothing
       if (smoothing > 0) {
         best.cx = (1 - smoothing) * best.cx + smoothing * prev.cx;
         best.cy = (1 - smoothing) * best.cy + smoothing * prev.cy;
@@ -255,8 +264,15 @@ function trackBlobs(detected, smoothing) {
       updated.push(best);
     }
   }
-  for (const det of detected) {
-    if (!used.has(det)) { det.id = nextBlobId++; det.vx = 0; det.vy = 0; updated.push(det); }
+
+  for (let di = 0; di < detected.length; di++) {
+    if (!matchedDet.has(di)) {
+      const det = detected[di];
+      det.id = nextBlobId++;
+      det.vx = 0;
+      det.vy = 0;
+      updated.push(det);
+    }
   }
   trackedBlobs = updated;
   return updated;
@@ -543,7 +559,6 @@ function render() {
 
   let frameData = srcData.data;
   if (blurRadius > 0) {
-    frameData = new Uint8ClampedArray(frameData);
     applyBlur(frameData, procW, procH, blurRadius);
   }
 

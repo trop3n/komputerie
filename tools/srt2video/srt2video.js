@@ -58,7 +58,7 @@ srtFileEl.addEventListener('change', () => {
   reader.onload = () => {
     subtitles = parseSRT(reader.result);
     if (subtitles.length > 0) {
-      totalDuration = Math.max(...subtitles.map(s => s.end));
+      totalDuration = subtitles.reduce((mx, s) => s.end > mx ? s.end : mx, 0);
       timelineEl.max = totalDuration;
     }
     currentTime = 0;
