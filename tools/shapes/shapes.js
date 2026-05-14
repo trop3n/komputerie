@@ -128,17 +128,21 @@ function render() {
   const srcH = mediaSource.height;
 
   // Sample source at grid resolution
-  sampCanvas.width = gridSize;
   const gridH = Math.round(gridSize * (srcH / srcW));
-  sampCanvas.height = gridH;
+  if (sampCanvas.width !== gridSize || sampCanvas.height !== gridH) {
+    sampCanvas.width = gridSize;
+    sampCanvas.height = gridH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, gridSize, gridH);
   const sampData = sampCtx.getImageData(0, 0, gridSize, gridH).data;
 
   // Output at nice resolution
   const outW = Math.min(srcW, 1024);
   const outH = Math.round(outW * (srcH / srcW));
-  canvas.width = outW;
-  canvas.height = outH;
+  if (canvas.width !== outW || canvas.height !== outH) {
+    canvas.width = outW;
+    canvas.height = outH;
+  }
 
   const cellW = outW / gridSize;
   const cellH = outH / gridH;

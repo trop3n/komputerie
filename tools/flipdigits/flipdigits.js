@@ -44,8 +44,10 @@ function sampleSource() {
   const rows = +rowsEl.value;
   const thresh = +thresholdEl.value;
 
-  sampCanvas.width = cols;
-  sampCanvas.height = rows;
+  if (sampCanvas.width !== cols || sampCanvas.height !== rows) {
+    sampCanvas.width = cols;
+    sampCanvas.height = rows;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, cols, rows);
   const data = sampCtx.getImageData(0, 0, cols, rows).data;
 
@@ -86,8 +88,10 @@ function draw() {
   const cellSize = Math.min(maxW / cols, 600 / rows);
   const W = Math.round(cols * cellSize);
   const H = Math.round(rows * cellSize);
-  canvas.width = W;
-  canvas.height = H;
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W;
+    canvas.height = H;
+  }
 
   // Dark housing background
   ctx.fillStyle = '#111';

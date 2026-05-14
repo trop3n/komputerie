@@ -27,6 +27,13 @@ class Vec2 {
   heading() { return Math.atan2(this.y, this.x); }
   static random() { const a = Math.random() * Math.PI * 2; return new Vec2(Math.cos(a), Math.sin(a)); }
   static fromAngle(a) { return new Vec2(Math.cos(a), Math.sin(a)); }
+  addMut(v) { this.x += v.x; this.y += v.y; return this; }
+  subMut(v) { this.x -= v.x; this.y -= v.y; return this; }
+  scaleMut(s) { this.x *= s; this.y *= s; return this; }
+  normalizeMut() { const m = this.mag(); if (m > 0) { this.x /= m; this.y /= m; } return this; }
+  limitMut(max) { const m = this.mag(); if (m > max) { this.normalizeMut().scaleMut(max); } return this; }
+  set(x, y) { this.x = x; this.y = y; return this; }
+  copy() { return new Vec2(this.x, this.y); }
 }
 
 // --- Flow field (from media source) ---
@@ -44,8 +51,10 @@ function updateFlowField() {
   if (!mediaSource.ready) { flowField = null; return; }
   const fw = 80;
   const fh = Math.round(fw * mediaSource.height / mediaSource.width) || 60;
-  sampCanvas.width = fw;
-  sampCanvas.height = fh;
+  if (sampCanvas.width !== fw || sampCanvas.height !== fh) {
+    sampCanvas.width = fw;
+    sampCanvas.height = fh;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, fw, fh);
   const data = sampCtx.getImageData(0, 0, fw, fh).data;
 
@@ -83,73 +92,79 @@ class Boid {
   }
 
   separation(neighbors, radius, maxSpeed, maxForce) {
-    let steer = new Vec2();
+    const steer = new Vec2();
+    const scratch = new Vec2();
     let count = 0;
     for (const other of neighbors) {
       if (other === this) continue;
-      const diff = this.pos.sub(other.pos);
-      const dSq = diff.magSq();
+      const dx = this.pos.x - other.pos.x, dy = this.pos.y - other.pos.y;
+      const dSq = dx * dx + dy * dy;
       if (dSq > 0 && dSq < radius * radius) {
-        steer = steer.add(diff.normalize().scale(1 / Math.sqrt(dSq)));
+        scratch.set(dx / dSq, dy / dSq);
+        steer.addMut(scratch);
         count++;
       }
     }
+    }
     if (count === 0) return new Vec2();
-    return steer.scale(1 / count).normalize().scale(maxSpeed).sub(this.vel).limit(maxForce);
+    return steer.scaleMut(1 / count).normalizeMut().scaleMut(maxSpeed).subMut(this.vel).limitMut(maxForce).copy();
   }
 
   alignment(neighbors, radius, maxSpeed, maxForce) {
-    let sum = new Vec2();
+    const sum = new Vec2();
     let count = 0;
     for (const other of neighbors) {
       if (other === this) continue;
-      if (this.pos.sub(other.pos).magSq() < radius * radius) {
-        sum = sum.add(other.vel);
+      const dx = this.pos.x - other.pos.x, dy = this.pos.y - other.pos.y;
+      if (dx * dx + dy * dy < radius * radius) {
+        sum.addMut(other.vel);
         count++;
       }
     }
     if (count === 0) return new Vec2();
-    return sum.scale(1 / count).normalize().scale(maxSpeed).sub(this.vel).limit(maxForce);
+    return sum.scaleMut(1 / count).normalizeMut().scaleMut(maxSpeed).subMut(this.vel).limitMut(maxForce).copy();
   }
 
   cohesion(neighbors, radius, maxSpeed, maxForce) {
-    let sum = new Vec2();
+    const sum = new Vec2();
     let count = 0;
     for (const other of neighbors) {
       if (other === this) continue;
-      if (this.pos.sub(other.pos).magSq() < radius * radius) {
-        sum = sum.add(other.pos);
+      const dx = this.pos.x - other.pos.x, dy = this.pos.y - other.pos.y;
+      if (dx * dx + dy * dy < radius * radius) {
+        sum.addMut(other.pos);
         count++;
       }
     }
     if (count === 0) return new Vec2();
-    const target = sum.scale(1 / count);
-    return target.sub(this.pos).normalize().scale(maxSpeed).sub(this.vel).limit(maxForce);
+    const target = sum.scaleMut(1 / count);
+    return target.subMut(this.pos).normalizeMut().scaleMut(maxSpeed).subMut(this.vel).limitMut(maxForce).copy();
   }
 
   update(neighbors, p) {
-    const sep = this.separation(neighbors, p.sepR, p.maxSpeed, p.maxForce).scale(p.sepW);
-    const ali = this.alignment(neighbors, p.alignR, p.maxSpeed, p.maxForce).scale(p.alignW);
-    const coh = this.cohesion(neighbors, p.cohR, p.maxSpeed, p.maxForce).scale(p.cohW);
-    this.acc = sep.add(ali).add(coh);
+    const sep = this.separation(neighbors, p.sepR, p.maxSpeed, p.maxForce).scaleMut(p.sepW);
+    const ali = this.alignment(neighbors, p.alignR, p.maxSpeed, p.maxForce).scaleMut(p.alignW);
+    const coh = this.cohesion(neighbors, p.cohR, p.maxSpeed, p.maxForce).scaleMut(p.cohW);
+    this.acc.set(0, 0).addMut(sep).addMut(ali).addMut(coh);
 
-    // Flow field force
     if (p.sourceInfluence > 0) {
       const angle = getFlowAngle(this.pos.x, this.pos.y);
       if (angle !== null) {
-        const desired = Vec2.fromAngle(angle).scale(p.maxSpeed);
-        const flow = desired.sub(this.vel).limit(p.maxForce).scale(p.sourceInfluence);
-        this.acc = this.acc.add(flow);
+        const flow = Vec2.fromAngle(angle).scaleMut(p.maxSpeed).subMut(this.vel).limitMut(p.maxForce).scaleMut(p.sourceInfluence);
+        this.acc.addMut(flow);
       }
     }
 
-    this.vel = this.vel.add(this.acc).limit(p.maxSpeed);
+    this.vel.addMut(this.acc).limitMut(p.maxSpeed);
     if (this.vel.mag() < p.minSpeed) {
-      this.vel = this.vel.mag() > 0
-        ? this.vel.normalize().scale(p.minSpeed)
-        : Vec2.fromAngle(Math.random() * Math.PI * 2).scale(p.minSpeed);
+      if (this.vel.mag() > 0) {
+        this.vel.normalizeMut().scaleMut(p.minSpeed);
+      } else {
+        const r = Vec2.fromAngle(Math.random() * Math.PI * 2).scaleMut(p.minSpeed);
+        this.vel.set(r.x, r.y);
+      }
     }
-    this.pos = this.pos.add(this.vel);
+    this.pos.addMut(this.vel);
   }
 
   handleBoundary(w, h, mode) {
@@ -160,11 +175,11 @@ class Boid {
       if (this.pos.y < 0) this.pos.y = h;
     } else if (mode === 'bounce') {
       if (this.pos.x <= 0 || this.pos.x >= w) {
-        this.vel = new Vec2(-this.vel.x, this.vel.y);
+        this.vel.x = -this.vel.x;
         this.pos.x = Math.max(0, Math.min(w, this.pos.x));
       }
       if (this.pos.y <= 0 || this.pos.y >= h) {
-        this.vel = new Vec2(this.vel.x, -this.vel.y);
+        this.vel.y = -this.vel.y;
         this.pos.y = Math.max(0, Math.min(h, this.pos.y));
       }
     } else if (mode === 'avoid') {
@@ -348,7 +363,7 @@ function render() {
   for (const boid of boids) {
     boid.update(boids, p);
     boid.handleBoundary(CW, CH, boundary);
-    boid.vel = boid.vel.limit(p.maxSpeed);
+    boid.vel.limitMut(p.maxSpeed);
   }
 
   for (const boid of boids) {

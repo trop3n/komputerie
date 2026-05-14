@@ -102,14 +102,18 @@ function render() {
   // Sample source
   const procW = Math.min(srcW, 480);
   const procH = Math.round(procW * (srcH / srcW));
-  sampCanvas.width = procW;
-  sampCanvas.height = procH;
+  if (sampCanvas.width !== procW || sampCanvas.height !== procH) {
+    sampCanvas.width = procW;
+    sampCanvas.height = procH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, procW, procH);
   const sampData = sampCtx.getImageData(0, 0, procW, procH).data;
 
   // Display
-  canvas.width = procW;
-  canvas.height = procH;
+  if (canvas.width !== procW || canvas.height !== procH) {
+    canvas.width = procW;
+    canvas.height = procH;
+  }
   ctx.drawImage(sampCanvas, 0, 0);
 
   // Sample points are distributed horizontally across the center

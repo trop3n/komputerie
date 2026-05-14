@@ -135,6 +135,8 @@ function nearestColorIdx(r, g, b, pal) {
 
 // Max processing resolution for video — keeps it fast
 const MAX_PROCESS_WIDTH = 480;
+let errorBuf = null;
+let errorBufLen = 0;
 
 function render() {
   if (!mediaSource.ready) return;
@@ -153,8 +155,10 @@ function render() {
   }
 
   // Process on offscreen canvas at reduced resolution
-  offCanvas.width = procW;
-  offCanvas.height = procH;
+  if (offCanvas.width !== procW || offCanvas.height !== procH) {
+    offCanvas.width = procW;
+    offCanvas.height = procH;
+  }
   offCtx.filter = +blur.value > 0 ? `blur(${+blur.value * (procW / srcW)}px)` : 'none';
   offCtx.drawImage(mediaSource.drawable, 0, 0, procW, procH);
   offCtx.filter = 'none';
@@ -194,7 +198,13 @@ function render() {
     }
   } else if (alg === 'floyd-steinberg' || alg === 'atkinson') {
     const errLen = procW * procH * 3;
-    const errors = new Float32Array(errLen);
+    if (!errorBuf || errorBufLen !== errLen) {
+      errorBuf = new Float32Array(errLen);
+      errorBufLen = errLen;
+    } else {
+      errorBuf.fill(0);
+    }
+    const errors = errorBuf;
     const isAtkinson = alg === 'atkinson';
 
     for (let i = 0; i < len; i += 4) {
@@ -269,8 +279,10 @@ function render() {
   offCtx.putImageData(imageData, 0, 0);
 
   // Upscale to display canvas (nearest-neighbor for crisp dithered look)
-  canvas.width = srcW;
-  canvas.height = srcH;
+  if (canvas.width !== srcW || canvas.height !== srcH) {
+    canvas.width = srcW;
+    canvas.height = srcH;
+  }
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(offCanvas, 0, 0, srcW, srcH);
 

@@ -92,8 +92,10 @@ function updateSourceSample() {
   if (!mediaSource.ready) { sampData = null; return; }
   sampW = Math.min(mediaSource.width, 200);
   sampH = Math.round(sampW * mediaSource.height / mediaSource.width) || 150;
-  sampCanvas.width = sampW;
-  sampCanvas.height = sampH;
+  if (sampCanvas.width !== sampW || sampCanvas.height !== sampH) {
+    sampCanvas.width = sampW;
+    sampCanvas.height = sampH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, sampW, sampH);
   sampData = sampCtx.getImageData(0, 0, sampW, sampH).data;
 }

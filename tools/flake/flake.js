@@ -87,8 +87,10 @@ function updateSourceSample() {
   if (!mediaSource.ready) { sampData = null; return; }
   sampW = Math.min(mediaSource.width, 200);
   sampH = Math.round(sampW * mediaSource.height / mediaSource.width) || 150;
-  sampCanvas.width = sampW;
-  sampCanvas.height = sampH;
+  if (sampCanvas.width !== sampW || sampCanvas.height !== sampH) {
+    sampCanvas.width = sampW;
+    sampCanvas.height = sampH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, sampW, sampH);
   sampData = sampCtx.getImageData(0, 0, sampW, sampH).data;
 }
@@ -135,9 +137,8 @@ function getFillColor(dist, colorMode, colors) {
 const LINE_SHAPES = new Set(['flake']);
 
 function drawShape(type, x, y, size, rotRad) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rotRad);
+  const cos = Math.cos(rotRad), sin = Math.sin(rotRad);
+  ctx.setTransform(cos, sin, -sin, cos, x, y);
 
   switch (type) {
     case 'circle':
@@ -315,7 +316,7 @@ function drawShape(type, x, y, size, rotRad) {
     ctx.stroke();
   }
 
-  ctx.restore();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function roundRect(ctx, x, y, w, h, r) {

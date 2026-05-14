@@ -107,13 +107,17 @@ function render() {
   // Sample source
   const procW = Math.min(srcW, 640);
   const procH = Math.round(procW * (srcH / srcW));
-  sampCanvas.width = procW;
-  sampCanvas.height = procH;
+  if (sampCanvas.width !== procW || sampCanvas.height !== procH) {
+    sampCanvas.width = procW;
+    sampCanvas.height = procH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, procW, procH);
   const sampData = sampCtx.getImageData(0, 0, procW, procH).data;
 
-  canvas.width = procW;
-  canvas.height = procH;
+  if (canvas.width !== procW || canvas.height !== procH) {
+    canvas.width = procW;
+    canvas.height = procH;
+  }
 
   const fontSize = +fontSizeEl.value;
   const bright = +brightnessEl.value * 2.55;

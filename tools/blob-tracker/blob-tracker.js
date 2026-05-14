@@ -127,23 +127,30 @@ function rgbToHsl(r, g, b) {
 function applyBlur(data, w, h, radius) {
   if (radius <= 0) return data;
   const src = new Uint8ClampedArray(data);
-  const size = radius * 2 + 1;
-  const area = size * size;
+  const tmp = new Uint8ClampedArray(data.length);
+  const diam = radius * 2 + 1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let rSum = 0, gSum = 0, bSum = 0;
+      for (let kx = -radius; kx <= radius; kx++) {
+        const px = Math.min(w - 1, Math.max(0, x + kx));
+        const si = (y * w + px) * 4;
+        rSum += src[si]; gSum += src[si + 1]; bSum += src[si + 2];
+      }
+      const di = (y * w + x) * 4;
+      tmp[di] = rSum / diam; tmp[di + 1] = gSum / diam; tmp[di + 2] = bSum / diam; tmp[di + 3] = 255;
+    }
+  }
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let rSum = 0, gSum = 0, bSum = 0;
       for (let ky = -radius; ky <= radius; ky++) {
         const py = Math.min(h - 1, Math.max(0, y + ky));
-        for (let kx = -radius; kx <= radius; kx++) {
-          const px = Math.min(w - 1, Math.max(0, x + kx));
-          const si = (py * w + px) * 4;
-          rSum += src[si]; gSum += src[si + 1]; bSum += src[si + 2];
-        }
+        const si = (py * w + x) * 4;
+        rSum += tmp[si]; gSum += tmp[si + 1]; bSum += tmp[si + 2];
       }
       const di = (y * w + x) * 4;
-      data[di] = rSum / area;
-      data[di + 1] = gSum / area;
-      data[di + 2] = bSum / area;
+      data[di] = rSum / diam; data[di + 1] = gSum / diam; data[di + 2] = bSum / diam;
     }
   }
   return data;
@@ -507,8 +514,10 @@ function render() {
   const procW = Math.min(srcW, 320);
   const procH = Math.round(procW * (srcH / srcW));
 
-  sampCanvas.width = procW;
-  sampCanvas.height = procH;
+  if (sampCanvas.width !== procW || sampCanvas.height !== procH) {
+    sampCanvas.width = procW;
+    sampCanvas.height = procH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, procW, procH);
   const srcData = sampCtx.getImageData(0, 0, procW, procH);
 
@@ -566,13 +575,17 @@ function render() {
     / Math.max(procW, procH) * 2
   ));
   const outW = procW * scale, outH = procH * scale;
-  canvas.width = outW;
-  canvas.height = outH;
+  if (canvas.width !== outW || canvas.height !== outH) {
+    canvas.width = outW;
+    canvas.height = outH;
+  }
   ctx.imageSmoothingEnabled = false;
 
   if (display === 'mask') {
-    maskCanvas.width = procW;
-    maskCanvas.height = procH;
+    if (maskCanvas.width !== procW || maskCanvas.height !== procH) {
+      maskCanvas.width = procW;
+      maskCanvas.height = procH;
+    }
     const maskImgData = maskCtx.createImageData(procW, procH);
     for (let i = 0; i < mask.length; i++) {
       const v = mask[i] ? 255 : 0;

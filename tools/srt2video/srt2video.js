@@ -89,8 +89,10 @@ function getNextGap(time) {
 
 function render() {
   const W = 800, H = 450;
-  canvas.width = W;
-  canvas.height = H;
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W;
+    canvas.height = H;
+  }
 
   const bright = +brightnessEl.value;
   const cont = +contrastEl.value;

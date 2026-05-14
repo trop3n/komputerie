@@ -42,8 +42,10 @@ function render() {
   // Sample at pixel grid resolution
   const gridW = Math.ceil(srcW / pxSize);
   const gridH = Math.ceil(srcH / pxSize);
-  sampCanvas.width = gridW;
-  sampCanvas.height = gridH;
+  if (sampCanvas.width !== gridW || sampCanvas.height !== gridH) {
+    sampCanvas.width = gridW;
+    sampCanvas.height = gridH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, gridW, gridH);
   const sampData = sampCtx.getImageData(0, 0, gridW, gridH).data;
 
@@ -54,8 +56,10 @@ function render() {
   const cellW = outW / gridW;
   const cellH = outH / gridH;
 
-  canvas.width = outW;
-  canvas.height = outH;
+  if (canvas.width !== outW || canvas.height !== outH) {
+    canvas.width = outW;
+    canvas.height = outH;
+  }
 
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, outW, outH);

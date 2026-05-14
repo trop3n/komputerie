@@ -12,6 +12,7 @@ const { mediaSource, onChange } = createSourceSelector(document.getElementById('
 let particles = [];
 let sampData = null;
 let sampW = 0, sampH = 0;
+let sampImageData = null;
 let paused = false;
 let animId = null;
 
@@ -35,15 +36,24 @@ function sampleSource() {
   const srcH = mediaSource.height;
   sampW = Math.min(srcW, 480);
   sampH = Math.round(sampW * (srcH / srcW));
-  sampCanvas.width = sampW;
-  sampCanvas.height = sampH;
+  if (sampCanvas.width !== sampW || sampCanvas.height !== sampH) {
+    sampCanvas.width = sampW;
+    sampCanvas.height = sampH;
+  }
   sampCtx.drawImage(mediaSource.drawable, 0, 0, sampW, sampH);
-  sampData = sampCtx.getImageData(0, 0, sampW, sampH).data;
+  if (!sampImageData || sampImageData.width !== sampW || sampImageData.height !== sampH) {
+    sampImageData = sampCtx.getImageData(0, 0, sampW, sampH);
+  } else {
+    sampCtx.getImageData(0, 0, sampW, sampH, sampImageData);
+  }
+  sampData = sampImageData.data;
 
-  canvas.width = sampW;
-  canvas.height = sampH;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, sampW, sampH);
+  if (canvas.width !== sampW || canvas.height !== sampH) {
+    canvas.width = sampW;
+    canvas.height = sampH;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, sampW, sampH);
+  }
 }
 
 function getLuminance(x, y) {
@@ -220,7 +230,12 @@ function loop() {
     // Re-sample for video/camera sources
     if (mediaSource.type !== 'image' && mediaSource.ready) {
       sampCtx.drawImage(mediaSource.drawable, 0, 0, sampW, sampH);
-      sampData = sampCtx.getImageData(0, 0, sampW, sampH).data;
+      if (!sampImageData || sampImageData.width !== sampW || sampImageData.height !== sampH) {
+        sampImageData = sampCtx.getImageData(0, 0, sampW, sampH);
+      } else {
+        sampCtx.getImageData(0, 0, sampW, sampH, sampImageData);
+      }
+      sampData = sampImageData.data;
     }
     step();
     draw();
