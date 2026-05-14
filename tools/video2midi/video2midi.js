@@ -200,7 +200,11 @@ function loop() {
   animId = requestAnimationFrame(loop);
 }
 
-onChange(() => { flushAllNotes(); if (!animId) loop(); });
+onChange((ms) => {
+  flushAllNotes();
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  if (ms.type !== 'image') loop();
+});
 
 window.addEventListener('beforeunload', flushAllNotes);
 midiChannelSel.addEventListener('change', flushAllNotes);

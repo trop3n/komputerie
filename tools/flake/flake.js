@@ -665,8 +665,11 @@ document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscree
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  const link = document.createElement('a');
-  link.download = 'flake.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  canvas.toBlob(blob => {
+    const link = document.createElement('a');
+    link.download = 'flake.png';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, 'image/png');
 });

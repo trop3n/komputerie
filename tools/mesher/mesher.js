@@ -694,10 +694,13 @@ document.addEventListener('keydown', e => {
 });
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  const link = document.createElement('a');
-  link.download = 'mesher.png';
-  link.href = glCanvas.toDataURL('image/png');
-  link.click();
+  glCanvas.toBlob(blob => {
+    const link = document.createElement('a');
+    link.download = 'mesher.png';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, 'image/png');
 });
 
 // --- Source handling ---

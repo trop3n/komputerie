@@ -297,9 +297,10 @@ function loop() {
   animId = requestAnimationFrame(loop);
 }
 
-onChange(() => {
+onChange((ms) => {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
   render();
-  if (mediaSource.type !== 'image' && !animId) loop();
+  if (ms.type !== 'image') loop();
 });
 
 // Re-render on control changes
@@ -315,10 +316,13 @@ document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscree
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  const link = document.createElement('a');
-  link.download = 'dithering.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  canvas.toBlob(blob => {
+    const link = document.createElement('a');
+    link.download = 'dithering.png';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, 'image/png');
 });
 
 document.getElementById('btn-randomize').addEventListener('click', () => {

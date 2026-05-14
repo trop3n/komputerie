@@ -453,7 +453,6 @@ document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscree
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  // Render at display resolution
   const tempCanvas = document.createElement('canvas');
   const scale = Math.max(1, Math.floor(1024 / gridW));
   tempCanvas.width = gridW * scale;
@@ -461,10 +460,13 @@ document.getElementById('btn-save').addEventListener('click', () => {
   const tctx = tempCanvas.getContext('2d');
   tctx.imageSmoothingEnabled = false;
   tctx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-  const link = document.createElement('a');
-  link.download = 'cellular-automata.png';
-  link.href = tempCanvas.toDataURL('image/png');
-  link.click();
+  tempCanvas.toBlob(blob => {
+    const link = document.createElement('a');
+    link.download = 'cellular-automata.png';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, 'image/png');
 });
 
 sizeSel.addEventListener('change', () => {

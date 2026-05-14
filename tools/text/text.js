@@ -200,7 +200,11 @@ function loop() {
   animId = requestAnimationFrame(loop);
 }
 
-onChange(() => { render(); if (mediaSource.type !== 'image' && !animId) loop(); });
+onChange((ms) => {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  render();
+  if (ms.type !== 'image') loop();
+});
 
 // Effect toggles
 document.getElementById('btn-glitch').addEventListener('click', function() {
@@ -222,8 +226,11 @@ document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscree
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
 
 document.getElementById('btn-save').addEventListener('click', () => {
-  const link = document.createElement('a');
-  link.download = 'text.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  canvas.toBlob(blob => {
+    const link = document.createElement('a');
+    link.download = 'text.png';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, 'image/png');
 });
