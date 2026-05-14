@@ -1,4 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
+import { rgbStr } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -79,7 +80,7 @@ function render() {
 
       const cx = gx * cellW + cellW * 0.5;
       const cy = gy * cellH + cellH * 0.5;
-      const color = `rgb(${r},${g},${b})`;
+      const color = rgbStr(r, g, b);
 
       if (style === 'square') {
         ctx.fillStyle = color;

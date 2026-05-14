@@ -19,3 +19,15 @@ export function parseColor(value) {
   _cache.set(value, rgb);
   return rgb;
 }
+
+const _rgbCache = new Map();
+
+export function rgbStr(r, g, b) {
+  const key = (r << 16) | (g << 8) | b;
+  let s = _rgbCache.get(key);
+  if (s) return s;
+  s = `rgb(${r},${g},${b})`;
+  if (_rgbCache.size > 4096) _rgbCache.clear();
+  _rgbCache.set(key, s);
+  return s;
+}

@@ -1,5 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
-import { parseColor } from '../../js/color.js';
+import { parseColor, rgbStr } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -200,11 +200,11 @@ function render() {
 
       if (shape === 'line') {
         ctx.lineWidth = Math.max(1, radius * 0.3);
-        ctx.strokeStyle = `rgb(${fillR|0},${fillG|0},${fillB|0})`;
+        ctx.strokeStyle = rgbStr(fillR|0, fillG|0, fillB|0);
         drawShape(ctx, shape, radius, rotation);
         ctx.stroke();
       } else {
-        ctx.fillStyle = `rgb(${fillR|0},${fillG|0},${fillB|0})`;
+        ctx.fillStyle = rgbStr(fillR|0, fillG|0, fillB|0);
         drawShape(ctx, shape, radius, rotation);
         ctx.fill();
       }

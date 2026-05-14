@@ -1,5 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
-import { parseColor } from '../../js/color.js';
+import { parseColor, rgbStr } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -178,7 +178,7 @@ function render() {
         oy = (Math.random() - 0.5) * fontSize * 0.5;
       }
 
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillStyle = rgbStr(r, g, b);
       ctx.fillText(ch, x + ox, y + oy);
     }
   }

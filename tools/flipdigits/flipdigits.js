@@ -1,5 +1,5 @@
 import { createSourceSelector } from '../../js/media-source.js';
-import { parseColor } from '../../js/color.js';
+import { parseColor, rgbStr } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -121,9 +121,8 @@ function draw() {
         ctx.scale(1, Math.max(0.1, scaleY * 0.3 + 0.7));
         ctx.beginPath();
         ctx.arc(0, 0, dotR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillStyle = rgbStr(r, g, b);
         ctx.fill();
-        // Slight highlight
         if (t > 0.5) {
           ctx.beginPath();
           ctx.arc(-dotR * 0.2, -dotR * 0.2, dotR * 0.3, 0, Math.PI * 2);
@@ -134,16 +133,15 @@ function draw() {
       } else if (style === 'round') {
         ctx.beginPath();
         ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillStyle = rgbStr(r, g, b);
         ctx.fill();
       } else if (style === 'square') {
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillStyle = rgbStr(r, g, b);
         ctx.fillRect(cx - dotR, cy - dotR, dotR * 2, dotR * 2);
       } else if (style === 'led') {
-        // LED style with glow
         ctx.beginPath();
         ctx.arc(cx, cy, dotR * 0.7, 0, Math.PI * 2);
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillStyle = rgbStr(r, g, b);
         ctx.fill();
         if (t > 0.3) {
           ctx.beginPath();
