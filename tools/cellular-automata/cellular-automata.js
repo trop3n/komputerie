@@ -1,6 +1,7 @@
 import { parseColor as parseHex } from '../../js/color.js';
 
 const canvas = document.getElementById('canvas');
+canvas.style.cursor = 'crosshair';
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const app = document.getElementById('app');
 
@@ -450,7 +451,14 @@ document.getElementById('btn-pause').addEventListener('click', () => {
 function toggleFullscreen() { app.classList.toggle('fullscreen'); }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscreen);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen();
+  if (e.key === ' ' && !['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) {
+    e.preventDefault();
+    paused = !paused;
+    document.getElementById('btn-pause').textContent = paused ? 'Play' : 'Pause';
+  }
+});
 
 document.getElementById('btn-save').addEventListener('click', () => {
   const tempCanvas = document.createElement('canvas');

@@ -7,7 +7,7 @@ const app = document.getElementById('app');
 const sampCanvas = document.createElement('canvas');
 const sampCtx = sampCanvas.getContext('2d', { willReadFrequently: true });
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 let midiOutput = null;
 let animId = null;

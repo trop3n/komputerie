@@ -10,7 +10,7 @@ const offCanvas = document.createElement('canvas');
 const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
 
 // Source
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 // State
 let colors = ['#000000', '#ffffff'];

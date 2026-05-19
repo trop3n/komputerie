@@ -10,7 +10,7 @@ const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
 
 const MAX_PROCESS_WIDTH = 960;
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 // Presets
 const presets = {

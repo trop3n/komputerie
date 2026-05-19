@@ -8,7 +8,7 @@ const app = document.getElementById('app');
 const sampCanvas = document.createElement('canvas');
 const sampCtx = sampCanvas.getContext('2d', { willReadFrequently: true });
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 let particles = [];
 let sampData = null;
@@ -267,7 +267,14 @@ document.getElementById('btn-pause').addEventListener('click', () => {
 function toggleFullscreen() { app.classList.toggle('fullscreen'); }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscreen);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen();
+  if (e.key === ' ' && !['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) {
+    e.preventDefault();
+    paused = !paused;
+    document.getElementById('btn-pause').textContent = paused ? 'Play' : 'Pause';
+  }
+});
 
 document.getElementById('btn-save').addEventListener('click', () => {
   canvas.toBlob(blob => {

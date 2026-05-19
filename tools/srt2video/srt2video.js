@@ -219,7 +219,18 @@ document.querySelectorAll('input[name="gaps"]').forEach(r => r.addEventListener(
 function toggleFullscreen() { app.classList.toggle('fullscreen'); }
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.getElementById('btn-exit-fs').addEventListener('click', toggleFullscreen);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && app.classList.contains('fullscreen')) toggleFullscreen();
+  if (e.key === ' ' && !['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) {
+    e.preventDefault();
+    if (playing) {
+      playing = false;
+    } else {
+      playing = true;
+      startTime = performance.now() - currentTime;
+    }
+  }
+});
 
 document.getElementById('btn-save').addEventListener('click', () => {
   canvas.toBlob(blob => {

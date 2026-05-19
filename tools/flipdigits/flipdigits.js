@@ -8,7 +8,7 @@ const app = document.getElementById('app');
 const sampCanvas = document.createElement('canvas');
 const sampCtx = sampCanvas.getContext('2d', { willReadFrequently: true });
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 let animId = null;
 let currentState = null;  // Float32Array of current dot flip progress (0=off, 1=on)

@@ -107,9 +107,11 @@ export class MediaSource {
  * Build source-selector UI into a container element.
  * Returns { mediaSource, onChange } where onChange(callback) fires when source changes.
  */
-export function createSourceSelector(container) {
+export function createSourceSelector(container, { transition } = {}) {
   const ms = new MediaSource();
   const callbacks = [];
+
+  if (transition) transition.style.transition = 'opacity 0.3s ease';
 
   // Build source selector DOM
   const srcGroup = document.createElement('div');
@@ -151,7 +153,11 @@ export function createSourceSelector(container) {
 
   const radios = radioRow.querySelectorAll('input');
 
-  function notify() { callbacks.forEach(cb => cb(ms)); }
+  function notify() {
+    if (transition) transition.style.opacity = '0';
+    callbacks.forEach(cb => cb(ms));
+    if (transition) requestAnimationFrame(() => requestAnimationFrame(() => { transition.style.opacity = ''; }));
+  }
 
   function updateFileVisibility(val) {
     fileGroup.style.display = (val === 'image' || val === 'video') ? '' : 'none';

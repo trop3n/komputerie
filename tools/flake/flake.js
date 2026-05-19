@@ -7,11 +7,11 @@ const app = document.getElementById('app');
 const sampCanvas = document.createElement('canvas');
 const sampCtx = sampCanvas.getContext('2d', { willReadFrequently: true });
 
-const CW = 800, CH = 600;
+let CW = 800, CH = 600;
 canvas.width = CW;
 canvas.height = CH;
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 let animId = null;
 let currentTime = 0;
@@ -655,6 +655,13 @@ function loop() {
 
 onChange(() => {
   updateSourceSample();
+  if (mediaSource.ready) {
+    const ratio = mediaSource.width / mediaSource.height;
+    if (ratio >= 1) { CW = 800; CH = Math.max(200, Math.round(800 / ratio)); }
+    else { CH = 800; CW = Math.max(200, Math.round(800 * ratio)); }
+    canvas.width = CW;
+    canvas.height = CH;
+  }
 });
 
 ctx.fillStyle = '#ffffff';

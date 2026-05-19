@@ -16,7 +16,7 @@ const uiCtx = uiCanvas.getContext('2d');
 
 if (!gl) { document.body.textContent = 'WebGL not supported'; throw new Error('No WebGL'); }
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: glCanvas });
 
 let contextLost = false;
 

@@ -10,7 +10,7 @@ canvas.height = CH;
 const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
 if (!gl) { document.body.textContent = 'WebGL not supported'; throw new Error('No WebGL'); }
 
-const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
+const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'), { transition: canvas });
 
 let animId = null;
 let animTime = 0;
