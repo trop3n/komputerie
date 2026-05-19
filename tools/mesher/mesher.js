@@ -18,6 +18,8 @@ if (!gl) { document.body.textContent = 'WebGL not supported'; throw new Error('N
 
 const { mediaSource, onChange } = createSourceSelector(document.getElementById('source-controls'));
 
+let contextLost = false;
+
 // --- WebGL shaders ---
 
 const vertSrc = `
@@ -57,58 +59,66 @@ function compileShader(type, src) {
   return s;
 }
 
-const prog = gl.createProgram();
-const vs = compileShader(gl.VERTEX_SHADER, vertSrc);
-const fs = compileShader(gl.FRAGMENT_SHADER, fragSrc);
-if (!vs || !fs) { document.body.textContent = 'WebGL shader compilation failed'; throw new Error('Shader compile failed'); }
-gl.attachShader(prog, vs);
-gl.attachShader(prog, fs);
-gl.linkProgram(prog);
-if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-  console.error(gl.getProgramInfoLog(prog));
-  document.body.textContent = 'WebGL program link failed';
-  throw new Error('Program link failed');
-}
-gl.useProgram(prog);
+let prog, aPos, aTex, uRes, uImg, uOpacity, posBuf, texBuf, idxBuf, srcTex;
 
-const aPos = gl.getAttribLocation(prog, 'a_position');
-const aTex = gl.getAttribLocation(prog, 'a_texCoord');
-const uRes = gl.getUniformLocation(prog, 'u_resolution');
-const uImg = gl.getUniformLocation(prog, 'u_image');
-const uOpacity = gl.getUniformLocation(prog, 'u_opacity');
-
-gl.enableVertexAttribArray(aPos);
-gl.enableVertexAttribArray(aTex);
-gl.uniform2f(uRes, CW, CH);
-
-const posBuf = gl.createBuffer();
-const texBuf = gl.createBuffer();
-const idxBuf = gl.createBuffer();
-
-// Source texture
-const srcTex = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, srcTex);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-// Upload placeholder
-const placeholderData = new Uint8Array(CW * CH * 4);
-for (let y = 0; y < CH; y++) {
-  for (let x = 0; x < CW; x++) {
-    const i = (y * CW + x) * 4;
-    const t = (x + y) / (CW + CH);
-    placeholderData[i] = Math.floor(t * 200 + 30);
-    placeholderData[i + 1] = Math.floor(80 + t * 100);
-    placeholderData[i + 2] = Math.floor(200 - t * 120);
-    placeholderData[i + 3] = 255;
+function initGL() {
+  prog = gl.createProgram();
+  const vs = compileShader(gl.VERTEX_SHADER, vertSrc);
+  const fs = compileShader(gl.FRAGMENT_SHADER, fragSrc);
+  if (!vs || !fs) { document.body.textContent = 'WebGL shader compilation failed'; throw new Error('Shader compile failed'); }
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(prog));
+    document.body.textContent = 'WebGL program link failed';
+    throw new Error('Program link failed');
   }
-}
-gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, placeholderData);
+  gl.useProgram(prog);
 
-gl.enable(gl.BLEND);
-gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  aPos = gl.getAttribLocation(prog, 'a_position');
+  aTex = gl.getAttribLocation(prog, 'a_texCoord');
+  uRes = gl.getUniformLocation(prog, 'u_resolution');
+  uImg = gl.getUniformLocation(prog, 'u_image');
+  uOpacity = gl.getUniformLocation(prog, 'u_opacity');
+
+  gl.enableVertexAttribArray(aPos);
+  gl.enableVertexAttribArray(aTex);
+  gl.uniform2f(uRes, CW, CH);
+
+  posBuf = gl.createBuffer();
+  texBuf = gl.createBuffer();
+  idxBuf = gl.createBuffer();
+
+  srcTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  if (mediaSource.ready) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, mediaSource.drawable);
+  } else {
+    const placeholderData = new Uint8Array(CW * CH * 4);
+    for (let y = 0; y < CH; y++) {
+      for (let x = 0; x < CW; x++) {
+        const i = (y * CW + x) * 4;
+        const t = (x + y) / (CW + CH);
+        placeholderData[i] = Math.floor(t * 200 + 30);
+        placeholderData[i + 1] = Math.floor(80 + t * 100);
+        placeholderData[i + 2] = Math.floor(200 - t * 120);
+        placeholderData[i + 3] = 255;
+      }
+    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, placeholderData);
+  }
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+}
+
+initGL();
 
 // --- Surface data model ---
 
@@ -253,6 +263,7 @@ function updateSourceTexture() {
 }
 
 function renderGL() {
+  if (contextLost) return;
   gl.viewport(0, 0, CW, CH);
   gl.clearColor(0, 0, 0, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -711,7 +722,11 @@ onChange(() => { updateSourceTexture(); });
 
 let sourceUpdateCounter = 0;
 
+let animId = null;
+
 function loop() {
+  if (contextLost) return;
+
   if (mediaSource.ready && mediaSource.type !== 'image') {
     sourceUpdateCounter++;
     if (sourceUpdateCounter % 2 === 0) updateSourceTexture();
@@ -723,7 +738,7 @@ function loop() {
     drawUI();
   }
 
-  requestAnimationFrame(loop);
+  animId = requestAnimationFrame(loop);
 }
 
 // --- Init with one default surface ---
@@ -734,3 +749,23 @@ renderSurfaceList();
 syncUIFromSurface();
 
 loop();
+
+const lostOverlay = document.createElement('div');
+lostOverlay.textContent = 'WebGL context lost — attempting recovery...';
+lostOverlay.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);color:#fff;font-family:var(--mono);font-size:14px;z-index:100;';
+app.style.position = 'relative';
+app.appendChild(lostOverlay);
+
+glCanvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  contextLost = true;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  lostOverlay.style.display = 'flex';
+});
+
+glCanvas.addEventListener('webglcontextrestored', () => {
+  contextLost = false;
+  initGL();
+  lostOverlay.style.display = 'none';
+  loop();
+});

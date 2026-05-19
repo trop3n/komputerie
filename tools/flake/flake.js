@@ -17,6 +17,7 @@ let animId = null;
 let currentTime = 0;
 let sampData = null;
 let sampW = 0, sampH = 0;
+let lastTime = performance.now();
 
 // --- Simplex noise 2D ---
 
@@ -485,7 +486,10 @@ function getMaskAlpha(cx, cy, maskType, maskBranches, maskRound, maskInner, mask
 let sourceUpdateCounter = 0;
 
 function render() {
-  // Update source for video/camera
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
   if (mediaSource.ready && mediaSource.type !== 'image') {
     sourceUpdateCounter++;
     if (sourceUpdateCounter % 5 === 0) updateSourceSample();
@@ -495,7 +499,7 @@ function render() {
   const motionSpeed = +els.motionSpeed.value;
 
   if (motionType !== 'none') {
-    currentTime += motionSpeed * 0.016;
+    currentTime += motionSpeed * dt;
   }
 
   const time = currentTime;

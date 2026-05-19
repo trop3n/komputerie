@@ -15,6 +15,8 @@ const { mediaSource, onChange } = createSourceSelector(document.getElementById('
 let animId = null;
 let animTime = 0;
 let needsUpdate = true;
+let lastTime = performance.now();
+let contextLost = false;
 
 // --- Shaders ---
 
@@ -179,37 +181,9 @@ function getUniforms(prog, names) {
   return u;
 }
 
-// --- Setup programs ---
+// --- GL state ---
 
-const dispProg = createProgram(vertSrc, displaceFrag);
-const gridProg = createProgram(vertSrc, gridRefractFrag);
-if (!dispProg || !gridProg) {
-  document.body.textContent = 'WebGL shader compilation failed';
-  throw new Error('Shader compilation failed');
-}
-
-const dispUni = getUniforms(dispProg, [
-  'u_image', 'u_resolution', 'u_displaceType', 'u_seed',
-  'u_contentScaleX', 'u_contentScaleY', 'u_time',
-  'u_box_ampX', 'u_box_ampY', 'u_box_freqX', 'u_box_freqY', 'u_box_speedX', 'u_box_speedY',
-  'u_flow_complexity', 'u_flow_freq', 'u_flow_ampX', 'u_flow_ampY', 'u_flow_speedX', 'u_flow_speedY',
-  'u_sine_ampX', 'u_sine_ampY', 'u_sine_freqX', 'u_sine_freqY', 'u_sine_speedX', 'u_sine_speedY',
-]);
-
-const gridUni = getUniforms(gridProg, [
-  'u_image', 'u_resolution', 'u_gridAmtX', 'u_gridAmtY', 'u_skewX', 'u_skewY',
-]);
-
-// --- Quad geometry ---
-
-const quadBuf = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-  -1, -1,  0, 0,
-   1, -1,  1, 0,
-  -1,  1,  0, 1,
-   1,  1,  1, 1,
-]), gl.STATIC_DRAW);
+let dispProg, gridProg, dispUni, gridUni, quadBuf, srcTexture, fbTex, fb;
 
 function setupAttribs(prog) {
   const aPos = gl.getAttribLocation(prog, 'a_position');
@@ -221,16 +195,6 @@ function setupAttribs(prog) {
   gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8);
 }
 
-// --- Textures ---
-
-const srcTexture = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, srcTexture);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-// Placeholder gradient
 function uploadPlaceholder() {
   const w = CW, h = CH;
   const data = new Uint8Array(w * h * 4);
@@ -249,22 +213,67 @@ function uploadPlaceholder() {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
 }
 
-uploadPlaceholder();
+function initGL() {
+  dispProg = createProgram(vertSrc, displaceFrag);
+  gridProg = createProgram(vertSrc, gridRefractFrag);
+  if (!dispProg || !gridProg) {
+    document.body.textContent = 'WebGL shader compilation failed';
+    throw new Error('Shader compilation failed');
+  }
 
-// --- Framebuffer for pass 1 ---
+  dispUni = getUniforms(dispProg, [
+    'u_image', 'u_resolution', 'u_displaceType', 'u_seed',
+    'u_contentScaleX', 'u_contentScaleY', 'u_time',
+    'u_box_ampX', 'u_box_ampY', 'u_box_freqX', 'u_box_freqY', 'u_box_speedX', 'u_box_speedY',
+    'u_flow_complexity', 'u_flow_freq', 'u_flow_ampX', 'u_flow_ampY', 'u_flow_speedX', 'u_flow_speedY',
+    'u_sine_ampX', 'u_sine_ampY', 'u_sine_freqX', 'u_sine_freqY', 'u_sine_speedX', 'u_sine_speedY',
+  ]);
 
-const fbTex = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, fbTex);
-gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gridUni = getUniforms(gridProg, [
+    'u_image', 'u_resolution', 'u_gridAmtX', 'u_gridAmtY', 'u_skewX', 'u_skewY',
+  ]);
 
-const fb = gl.createFramebuffer();
-gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fbTex, 0);
-gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1,  0, 0,
+     1, -1,  1, 0,
+    -1,  1,  0, 1,
+     1,  1,  1, 1,
+  ]), gl.STATIC_DRAW);
+
+  srcTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, srcTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  if (mediaSource.ready) {
+    updateSourceTexture();
+  } else {
+    uploadPlaceholder();
+  }
+
+  fbTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, fbTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, CW, CH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fbTex, 0);
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (status !== gl.FRAMEBUFFER_COMPLETE) {
+    console.warn('Framebuffer incomplete:', status);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+initGL();
 
 // --- Update source texture from MediaSource ---
 
@@ -308,10 +317,16 @@ document.querySelectorAll('#refract-radios input').forEach(r => {
 let sourceUpdateCounter = 0;
 
 function render() {
+  if (contextLost) return;
+
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
   const animating = getRadio('animate-radios') === 'on';
 
   if (animating) {
-    animTime += 0.016;
+    animTime += dt;
     needsUpdate = true;
   }
 
@@ -420,6 +435,27 @@ onChange(() => {
 });
 
 loop();
+
+const lostOverlay = document.createElement('div');
+lostOverlay.textContent = 'WebGL context lost — attempting recovery...';
+lostOverlay.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.85);color:#fff;font-family:var(--mono);font-size:14px;z-index:100;';
+app.style.position = 'relative';
+app.appendChild(lostOverlay);
+
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  contextLost = true;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  lostOverlay.style.display = 'flex';
+});
+
+canvas.addEventListener('webglcontextrestored', () => {
+  contextLost = false;
+  lastTime = performance.now();
+  initGL();
+  lostOverlay.style.display = 'none';
+  loop();
+});
 
 // --- Fullscreen & Save ---
 

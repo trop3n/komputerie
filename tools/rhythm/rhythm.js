@@ -17,6 +17,7 @@ let animId = null;
 let currentTime = 0;
 let sampData = null;
 let sampW = 0, sampH = 0;
+let lastTime = performance.now();
 
 // --- Simplex noise (2D/3D) ---
 
@@ -206,7 +207,10 @@ function getLineColor(index, totalLines, time) {
 let sourceUpdateCounter = 0;
 
 function render() {
-  currentTime += 0.016;
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+  currentTime += dt;
 
   // Update source for video/camera
   if (mediaSource.ready && mediaSource.type !== 'image') {
