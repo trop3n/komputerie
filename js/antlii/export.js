@@ -2,14 +2,10 @@
 //  - PNG still (with integer upscale)
 //  - SVG (vector tools, when getSVG is provided)
 //  - Video recording (MediaRecorder) with fps, bitrate, and fixed-duration
-//    auto-stop. Output is native MP4 where the browser supports it, otherwise
-//    WebM (compile the frame sequence below to MP4 with FFmpeg if you need it).
-//  - PNG/WebP frame sequence zipped (the reliable, antlii-style path to MP4).
-//
-// Note on MP4: true in-browser transcode would need ffmpeg.wasm, which requires
-// either cross-origin isolation (COOP/COEP) or a same-origin vendored ~31 MB
-// core — neither fits this static, no-build setup — so we record native MP4
-// where available and otherwise hand off to FFmpeg via the frame sequence.
+//    auto-stop. WebM, or real MP4: native MP4 where the browser records it,
+//    otherwise the recorded WebM is transcoded to MP4 in-browser via a vendored,
+//    same-origin ffmpeg.wasm (single-threaded core — no COOP/COEP needed).
+//  - PNG/WebP frame sequence zipped.
 export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
   const opts = { scale: 1 };
   page.addBinding(opts, 'scale', { label: 'Resolution ×', min: 1, max: 4, step: 1 });
@@ -32,7 +28,7 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
 
   // ---- Video recording ----
   const vid = { format: 'webm', fps: 30, bitrate: 12, duration: 0, status: 'idle' };
-  page.addBinding(vid, 'format', { options: { WebM: 'webm', 'MP4*': 'mp4' } });
+  page.addBinding(vid, 'format', { options: { WebM: 'webm', MP4: 'mp4' } });
   page.addBinding(vid, 'fps', { min: 12, max: 60, step: 1 });
   page.addBinding(vid, 'bitrate', { label: 'bitrate Mbps', min: 1, max: 40, step: 1 });
   page.addBinding(vid, 'duration', { label: 'auto-stop s', min: 0, max: 60, step: 1 });
@@ -54,13 +50,23 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
     } catch (e) { console.error('record init failed', e); setStatus('error'); rec = null; return; }
     recMime = mime; chunks = [];
     rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-    rec.onstop = () => {
+    rec.onstop = async () => {
       clearTimers();
       recBtn.title = 'Record Video';
-      const ext = recMime.includes('mp4') ? 'mp4' : 'webm';
-      download(new Blob(chunks, { type: recMime }), `${name}.${ext}`);
+      const recordedExt = recMime.includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(chunks, { type: recMime });
       rec = null;
-      setStatus(wantMp4 && ext !== 'mp4' ? 'no native MP4 → saved WebM (use Frames + FFmpeg)' : 'idle');
+      if (wantMp4 && recordedExt !== 'mp4') {
+        try {
+          const mp4 = await transcodeToMp4(blob, setStatus);
+          download(mp4, `${name}.mp4`); setStatus('idle');
+        } catch (e) {
+          console.error('mp4 transcode failed', e);
+          download(blob, `${name}.webm`); setStatus('mp4 failed → webm');
+        }
+      } else {
+        download(blob, `${name}.${recordedExt}`); setStatus('idle');
+      }
     };
     rec.start();
     recBtn.title = '■ Stop';
@@ -110,6 +116,39 @@ function pickVideoMime(preferMp4) {
   const order = preferMp4 ? [...mp4, ...webm] : [...webm, ...mp4];
   for (const m of order) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) { /* ignore */ } }
   return null;
+}
+
+// ---- Vendored ffmpeg.wasm (same-origin → module worker + ESM core load with no
+//      cross-origin / COOP-COEP issues). Single-threaded core (no SharedArrayBuffer). ----
+let _ffmpeg = null, _ffmpegLoad = null;
+function loadFFmpeg(onState) {
+  if (_ffmpeg) return Promise.resolve(_ffmpeg);
+  if (_ffmpegLoad) return _ffmpegLoad;
+  _ffmpegLoad = (async () => {
+    onState && onState('loading ffmpeg…');
+    const { FFmpeg } = await import('../vendor/ffmpeg/pkg/index.js');
+    const ff = new FFmpeg();
+    await ff.load({
+      coreURL: new URL('../vendor/ffmpeg/core/ffmpeg-core.js', import.meta.url).href,
+      wasmURL: new URL('../vendor/ffmpeg/core/ffmpeg-core.wasm', import.meta.url).href,
+    });
+    _ffmpeg = ff;
+    return ff;
+  })();
+  return _ffmpegLoad;
+}
+
+async function transcodeToMp4(webmBlob, onState) {
+  const ff = await loadFFmpeg(onState);
+  onState && onState('transcoding mp4…');
+  await ff.writeFile('in.webm', new Uint8Array(await webmBlob.arrayBuffer()));
+  // ff['exec'] runs ffmpeg INSIDE the wasm sandbox with a fixed argument array —
+  // no shell, no child_process, no interpolated input (not Node's exec).
+  const runFFmpeg = ff['exec'].bind(ff);
+  // scale to even dimensions — H.264 / yuv420p requires width & height divisible by 2
+  await runFFmpeg(['-i', 'in.webm', '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', '-movflags', '+faststart', 'out.mp4']);
+  const data = await ff.readFile('out.mp4');
+  return new Blob([data.buffer], { type: 'video/mp4' });
 }
 
 function download(blob, filename) {
