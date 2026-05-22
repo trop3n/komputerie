@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ksawery</title>
+  <title>Ksawery — generative tools</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,127 +11,83 @@
 </head>
 <body>
   <div class="index-page">
+    <nav class="index-nav">
+      <a href="./" class="index-nav-brand">KSAWERY</a>
+      <div class="index-nav-links">
+        <a href="#about">ABOUT</a>
+        <a href="classic.html">CLASSIC</a>
+      </div>
+    </nav>
     <header class="index-header">
-      <h1>Ksawery</h1>
-      <p>visual tools for the browser</p>
+      <h1>Generative Tools</h1>
+      <p>a suite of browser-based generative instruments — vector, type, and shader</p>
     </header>
     <div class="tools-grid">
-      <a href="tools/dithering/" class="tool-card" style="animation-delay:.05s">
-        <canvas data-preview="dithering"></canvas>
-        <div class="tool-card-info">
-          <h2>Dithering</h2>
-          <p>Real-time dithering with custom color palettes and adjustments</p>
-        </div>
-      </a>
-      <a href="tools/cellular-automata/" class="tool-card" style="animation-delay:.1s">
-        <canvas data-preview="cellular-automata"></canvas>
-        <div class="tool-card-info">
-          <h2>Cellular Automata</h2>
-          <p>Interactive automata with multiple rules, brushes, and effects</p>
-        </div>
-      </a>
-      <a href="tools/gradient-map/" class="tool-card" style="animation-delay:.15s">
-        <canvas data-preview="gradient-map"></canvas>
-        <div class="tool-card-info">
-          <h2>Gradient Map</h2>
-          <p>Map image luminance to custom color gradients</p>
-        </div>
-      </a>
-      <a href="tools/shapes/" class="tool-card" style="animation-delay:.2s">
-        <canvas data-preview="shapes"></canvas>
-        <div class="tool-card-info">
-          <h2>Shapes</h2>
-          <p>Render media as grids of geometric shapes driven by luminance</p>
-        </div>
-      </a>
-      <a href="tools/text/" class="tool-card" style="animation-delay:.25s">
-        <canvas data-preview="text"></canvas>
-        <div class="tool-card-info">
-          <h2>Text</h2>
-          <p>Render images through text characters with glitch effects</p>
-        </div>
-      </a>
-      <a href="tools/pixel-flow/" class="tool-card" style="animation-delay:.3s">
-        <canvas data-preview="pixel-flow"></canvas>
-        <div class="tool-card-info">
-          <h2>Pixel Flow</h2>
-          <p>Particle flow visualization driven by image luminance</p>
-        </div>
-      </a>
-      <a href="tools/pixelator/" class="tool-card" style="animation-delay:.35s">
-        <canvas data-preview="pixelator"></canvas>
-        <div class="tool-card-info">
-          <h2>Pixelator</h2>
-          <p>Pixelation with multiple styles — squares, circles, diamonds, ASCII</p>
-        </div>
-      </a>
-      <a href="tools/srt2video/" class="tool-card" style="animation-delay:.4s">
-        <canvas data-preview="srt2video"></canvas>
-        <div class="tool-card-info">
-          <h2>SRT to Video</h2>
-          <p>Visualize subtitle files as timed text sequences</p>
-        </div>
-      </a>
-      <a href="tools/video2midi/" class="tool-card" style="animation-delay:.45s">
-        <canvas data-preview="video2midi"></canvas>
-        <div class="tool-card-info">
-          <h2>Video to MIDI</h2>
-          <p>Convert video brightness to MIDI notes with scale quantization</p>
-        </div>
-      </a>
-      <a href="tools/flipdigits/" class="tool-card" style="animation-delay:.5s">
-        <canvas data-preview="flipdigits"></canvas>
-        <div class="tool-card-info">
-          <h2>Flipdigits Player</h2>
-          <p>Simulated flip-dot displays with animated transitions</p>
-        </div>
-      </a>
-      <a href="tools/blob-tracker/" class="tool-card" style="animation-delay:.55s">
-        <canvas data-preview="blob-tracker"></canvas>
-        <div class="tool-card-info">
-          <h2>Blob Tracker</h2>
-          <p>Real-time blob detection and tracking from video and camera input</p>
-        </div>
-      </a>
-      <a href="tools/boids/" class="tool-card" style="animation-delay:.6s">
-        <canvas data-preview="boids"></canvas>
-        <div class="tool-card-info">
-          <h2>Boids</h2>
-          <p>Flocking simulation with separation, alignment, and cohesion forces</p>
-        </div>
-      </a>
-      <a href="tools/rhythm/" class="tool-card" style="animation-delay:.65s">
-        <canvas data-preview="rhythm"></canvas>
-        <div class="tool-card-info">
-          <h2>Rhythm</h2>
-          <p>Animated waveform patterns with noise, sine, and geometric modes</p>
-        </div>
-      </a>
-      <a href="tools/flake/" class="tool-card" style="animation-delay:.7s">
+      <a href="tools/flake-tool/" class="tool-card" style="animation-delay:.05s">
         <canvas data-preview="flake"></canvas>
         <div class="tool-card-info">
-          <h2>Flake</h2>
-          <p>Generative tile patterns with noise-driven rotation and parametric masks</p>
+          <h2>FLAKE</h2>
+          <p>Generative symmetrical vector tile patterns with noise, swirl & masks</p>
         </div>
       </a>
-      <a href="tools/refract/" class="tool-card" style="animation-delay:.75s">
+      <a href="tools/splitx/" class="tool-card" style="animation-delay:.1s">
+        <canvas data-preview="splitx"></canvas>
+        <div class="tool-card-info">
+          <h2>SPLITX</h2>
+          <p>Vector shapes mirrored across a split canvas into kaleidoscopes</p>
+        </div>
+      </a>
+      <a href="tools/bluur/" class="tool-card" style="animation-delay:.15s">
+        <canvas data-preview="bluur"></canvas>
+        <div class="tool-card-info">
+          <h2>BLUUR</h2>
+          <p>Soft color-shape fusion through blur, GLSL noise & procedural palettes</p>
+        </div>
+      </a>
+      <a href="tools/textr/" class="tool-card" style="animation-delay:.2s">
+        <canvas data-preview="textr"></canvas>
+        <div class="tool-card-info">
+          <h2>TEXTR</h2>
+          <p>Typographic art from vectorized text, distributed & transformed</p>
+        </div>
+      </a>
+      <a href="tools/sampl/" class="tool-card" style="animation-delay:.25s">
+        <canvas data-preview="sampl"></canvas>
+        <div class="tool-card-info">
+          <h2>SAMPL</h2>
+          <p>Geometric shapes sampled along glyph outlines</p>
+        </div>
+      </a>
+      <a href="tools/rastr/" class="tool-card" style="animation-delay:.3s">
+        <canvas data-preview="rastr"></canvas>
+        <div class="tool-card-info">
+          <h2>RASTR</h2>
+          <p>Text rasterized into a kinetic geometric shape grid</p>
+        </div>
+      </a>
+      <a href="tools/ritm/" class="tool-card" style="animation-delay:.35s">
+        <canvas data-preview="ritm"></canvas>
+        <div class="tool-card-info">
+          <h2>RITM</h2>
+          <p>Abstract waveform graphics from simplex noise & generative palettes</p>
+        </div>
+      </a>
+      <a href="tools/refract-tool/" class="tool-card" style="animation-delay:.4s">
         <canvas data-preview="refract"></canvas>
         <div class="tool-card-info">
-          <h2>Refract</h2>
-          <p>WebGL displacement and grid refraction with box, flow, and sine modes</p>
-        </div>
-      </a>
-      <a href="tools/mesher/" class="tool-card" style="animation-delay:.8s">
-        <canvas data-preview="mesher"></canvas>
-        <div class="tool-card-info">
-          <h2>Mesher</h2>
-          <p>Projection mapping with quad warp and bezier mesh surfaces</p>
+          <h2>REFRACT</h2>
+          <p>Image displacement & grid refraction via GLSL shaders</p>
         </div>
       </a>
     </div>
+    <section id="about" class="index-about">
+      <h2>About</h2>
+      <p>A personal homage recreation of the <a href="https://antlii.work" target="_blank" rel="noopener">antlii.work</a> toolset by Anatolii Babii — original implementations inspired by his generative instruments, rebuilt from scratch on p5.js, Paper.js, opentype.js and Tweakpane. Not affiliated with or endorsed by the original author.</p>
+      <p>Earlier raster experiments live in the <a href="classic.html">classic tools</a> archive.</p>
+    </section>
   </div>
   <script type="module">
-    import { initPreviews } from './js/previews.js';
+    import { initPreviews } from './js/antlii/previews.js';
     initPreviews();
   </script>
 </body>

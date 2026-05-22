@@ -454,3 +454,56 @@ input[type="range"]::-moz-range-thumb {
   color: var(--text);
   border-color: var(--accent);
 }
+
+/* ---- antlii landing extras ---- */
+.index-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 0 26px;
+  font: 12px var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.index-nav-brand {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.index-nav-links {
+  display: flex;
+  gap: 18px;
+}
+
+.index-nav-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.index-nav-links a:hover {
+  color: var(--accent);
+}
+
+.index-about {
+  max-width: 720px;
+  margin: 64px auto 48px;
+  padding: 0 4px;
+  font: 14px/1.7 var(--sans);
+  color: var(--text-dim);
+}
+
+.index-about h2 {
+  font: 500 13px var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.index-about p {
+  margin: 0 0 12px;
+}
+
+.index-about a {
+  color: var(--accent);
+}
