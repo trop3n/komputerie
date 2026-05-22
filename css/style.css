@@ -408,3 +408,49 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* ---- antlii-style tools (p5 + Tweakpane shell) ---- */
+.antlii-tool {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.antlii-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.antlii-canvas canvas {
+  display: block;
+}
+
+.antlii-pane {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 288px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.antlii-back {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 10;
+  color: var(--text-dim);
+  font: 12px var(--mono);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.antlii-back:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
