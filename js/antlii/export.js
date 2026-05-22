@@ -1,8 +1,15 @@
 // Export controls for antlii tools, shared across every tool via attachExport:
 //  - PNG still (with integer upscale)
 //  - SVG (vector tools, when getSVG is provided)
-//  - Video recording (WebM via MediaRecorder, native MP4 where supported)
-//  - PNG/WebP frame sequence zipped (for compiling to MP4 with FFmpeg, etc.)
+//  - Video recording (MediaRecorder) with fps, bitrate, and fixed-duration
+//    auto-stop. Output is native MP4 where the browser supports it, otherwise
+//    WebM (compile the frame sequence below to MP4 with FFmpeg if you need it).
+//  - PNG/WebP frame sequence zipped (the reliable, antlii-style path to MP4).
+//
+// Note on MP4: true in-browser transcode would need ffmpeg.wasm, which requires
+// either cross-origin isolation (COOP/COEP) or a same-origin vendored ~31 MB
+// core — neither fits this static, no-build setup — so we record native MP4
+// where available and otherwise hand off to FFmpeg via the frame sequence.
 export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
   const opts = { scale: 1 };
   page.addBinding(opts, 'scale', { label: 'Resolution ×', min: 1, max: 4, step: 1 });
@@ -23,32 +30,46 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
 
   page.addBlade({ view: 'separator' });
 
-  // ---- Video recording (WebM / MP4 via MediaRecorder) ----
-  const vid = { fps: 30, status: 'idle' };
+  // ---- Video recording ----
+  const vid = { format: 'webm', fps: 30, bitrate: 12, duration: 0, status: 'idle' };
+  page.addBinding(vid, 'format', { options: { WebM: 'webm', 'MP4*': 'mp4' } });
   page.addBinding(vid, 'fps', { min: 12, max: 60, step: 1 });
+  page.addBinding(vid, 'bitrate', { label: 'bitrate Mbps', min: 1, max: 40, step: 1 });
+  page.addBinding(vid, 'duration', { label: 'auto-stop s', min: 0, max: 60, step: 1 });
   const recBtn = page.addButton({ title: 'Record Video' });
   const vidStatus = page.addBinding(vid, 'status', { readonly: true, label: 'video' });
-  let rec = null, chunks = null;
+  let rec = null, chunks = null, recMime = '', autoStop = null, countdown = null;
+  const setStatus = (s) => { vid.status = s; vidStatus.refresh(); };
+  const clearTimers = () => { if (autoStop) { clearTimeout(autoStop); autoStop = null; } if (countdown) { clearInterval(countdown); countdown = null; } };
+
   recBtn.on('click', () => {
     if (rec) { rec.stop(); return; }
     const canvas = getCanvas();
-    const mime = pickVideoMime();
-    if (!canvas || typeof canvas.captureStream !== 'function' || !mime) {
-      vid.status = 'unsupported'; vidStatus.refresh(); return;
-    }
+    const wantMp4 = vid.format === 'mp4';
+    const mime = pickVideoMime(wantMp4);
+    if (!canvas || typeof canvas.captureStream !== 'function' || !mime) { setStatus('unsupported'); return; }
     try {
       const stream = canvas.captureStream(vid.fps);
-      rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
-    } catch (e) { console.error('record init failed', e); vid.status = 'error'; vidStatus.refresh(); rec = null; return; }
-    chunks = [];
+      rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: vid.bitrate * 1_000_000 });
+    } catch (e) { console.error('record init failed', e); setStatus('error'); rec = null; return; }
+    recMime = mime; chunks = [];
     rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
-      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-      download(new Blob(chunks, { type: mime }), `${name}.${ext}`);
-      rec = null; recBtn.title = 'Record Video'; vid.status = 'idle'; vidStatus.refresh();
+      clearTimers();
+      recBtn.title = 'Record Video';
+      const ext = recMime.includes('mp4') ? 'mp4' : 'webm';
+      download(new Blob(chunks, { type: recMime }), `${name}.${ext}`);
+      rec = null;
+      setStatus(wantMp4 && ext !== 'mp4' ? 'no native MP4 → saved WebM (use Frames + FFmpeg)' : 'idle');
     };
     rec.start();
-    recBtn.title = '■ Stop'; vid.status = 'recording…'; vidStatus.refresh();
+    recBtn.title = '■ Stop';
+    if (vid.duration > 0) {
+      let left = vid.duration;
+      setStatus(`recording… ${left}s`);
+      countdown = setInterval(() => { left -= 1; if (left > 0) setStatus(`recording… ${left}s`); }, 1000);
+      autoStop = setTimeout(() => { if (rec) rec.stop(); }, vid.duration * 1000);
+    } else setStatus('recording…');
   });
 
   // ---- Frame sequence (PNG/WebP zip) ----
@@ -82,10 +103,12 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
   });
 }
 
-function pickVideoMime() {
+function pickVideoMime(preferMp4) {
   if (typeof MediaRecorder === 'undefined') return null;
-  const cands = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4;codecs=avc1', 'video/mp4'];
-  for (const m of cands) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) { /* ignore */ } }
+  const webm = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  const mp4 = ['video/mp4;codecs=avc1', 'video/mp4'];
+  const order = preferMp4 ? [...mp4, ...webm] : [...webm, ...mp4];
+  for (const m of order) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) { /* ignore */ } }
   return null;
 }
 
