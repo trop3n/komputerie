@@ -128,6 +128,102 @@ const effects = {
       ctx.globalCompositeOperation = 'source-over';
     },
   },
+  plain: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#06070d'; ctx.fillRect(0, 0, W, H);
+      const cols = 10, rows = 7, cw = W / cols, ch = H / rows;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const h = Math.sin(c * 0.6 + r * 0.5 + f * 0.04) * 0.5 + 0.5;
+        ctx.fillStyle = `hsl(200,45%,${18 + h * 55}%)`;
+        const x = c * cw, y = r * ch;
+        ctx.beginPath(); ctx.moveTo(x, y + ch); ctx.lineTo(x + cw / 2, y + ch - h * ch * 0.85); ctx.lineTo(x + cw, y + ch); ctx.closePath(); ctx.fill();
+      }
+    },
+  },
+  skaaan: {
+    init() {
+      const g = document.createElement('canvas'); g.width = W; g.height = H;
+      const c = g.getContext('2d');
+      const gr = c.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#e94560'); gr.addColorStop(0.5, '#533483'); gr.addColorStop(1, '#0f3460');
+      c.fillStyle = gr; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 6; i++) { c.fillStyle = `hsla(${Math.random() * 360},70%,60%,0.5)`; c.beginPath(); c.arc(Math.random() * W, Math.random() * H, 15 + Math.random() * 28, 0, 7); c.fill(); }
+      return { img: g };
+    },
+    draw(ctx, f, s) {
+      ctx.drawImage(s.img, 0, 0);
+      const x = (f * 1.4) % W, y = (Math.sin(f * 0.04) * 0.4 + 0.5) * (H - 16);
+      ctx.drawImage(s.img, x, 0, 1, H, 0, y, W, 14);
+    },
+  },
+  drift: {
+    draw(ctx, f) {
+      ctx.fillStyle = 'rgba(6,7,13,0.16)'; ctx.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2;
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 6; i++) {
+        const a = f * 0.03 + i;
+        ctx.save(); ctx.translate(cx + Math.cos(a) * (18 + i * 5), cy + Math.sin(a * 1.3) * (14 + i * 4)); ctx.rotate(a);
+        ctx.fillStyle = `hsla(${(280 + i * 15) % 360},70%,62%,0.5)`; ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    },
+  },
+  klon: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+      const cell = 12;
+      for (let y = 0; y < H; y += cell) for (let x = 0; x < W; x += cell) {
+        if (Math.hypot(x + cell / 2 - W / 2, y + cell / 2 - H / 2) < 46) { ctx.fillStyle = `hsl(${(x / W * 160 + 200 + f * 0.5) % 360},65%,58%)`; ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2); }
+      }
+    },
+  },
+  stiil: {
+    draw(ctx, f) {
+      for (let y = 0; y < H; y++) {
+        const t = Math.floor((y / H + Math.sin(f * 0.02) * 0.12) * 5) / 5;
+        ctx.fillStyle = `rgb(${Math.round(16 + t * 230)},${Math.round(9 + t * 200)},${Math.round(46 + t * 100)})`;
+        ctx.fillRect(0, y, W, 1);
+      }
+    },
+  },
+  biom: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#0a0e17'; ctx.fillRect(0, 0, W, H);
+      const m = 10;
+      ctx.save(); ctx.beginPath(); ctx.rect(m, m, W - 2 * m, H - 2 * m); ctx.clip();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 5; i++) {
+        const x = W * ((i * 0.27 + 0.15) % 1), y = H * ((i * 0.4 + 0.3) % 1), r = 18 + Math.sin(f * 0.03 + i) * 8;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `hsla(${(190 + i * 20) % 360},60%,62%,0.5)`); g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
+      ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 1; ctx.strokeRect(m, m, W - 2 * m, H - 2 * m);
+    },
+  },
+  dithr: {
+    draw(ctx, f) {
+      ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+      const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5], cell = 4;
+      for (let y = 0; y < H; y += cell) for (let x = 0; x < W; x += cell) {
+        const lum = (x / W) * 0.9 + Math.sin(y / H * 3 + f * 0.03) * 0.1;
+        const bi = (((y / cell) | 0) & 3) * 4 + (((x / cell) | 0) & 3);
+        if ((1 - lum) * 16 > bayer[bi]) { ctx.fillStyle = '#e8e8e8'; ctx.fillRect(x, y, cell - 1, cell - 1); }
+      }
+    },
+  },
+  boids: {
+    init() { const b = []; for (let i = 0; i < 22; i++) b.push({ x: Math.random() * W, y: Math.random() * H, a: Math.random() * 7 }); return { b }; },
+    draw(ctx, f, s) {
+      ctx.fillStyle = 'rgba(5,6,13,0.28)'; ctx.fillRect(0, 0, W, H);
+      for (const o of s.b) {
+        o.a += Math.sin(f * 0.02 + o.x * 0.05) * 0.1; o.x += Math.cos(o.a) * 1.2; o.y += Math.sin(o.a) * 1.2;
+        if (o.x < 0) o.x += W; if (o.x > W) o.x -= W; if (o.y < 0) o.y += H; if (o.y > H) o.y -= H;
+        ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.a); ctx.fillStyle = '#9ad0ff';
+        ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, 2.5); ctx.lineTo(-3, -2.5); ctx.closePath(); ctx.fill(); ctx.restore();
+      }
+    },
+  },
 };
 
 export function initPreviews() {
