@@ -130,5 +130,9 @@ attachExport(tool.pages.export, { getCanvas: tool.getCanvas, name: 'skaaan' });
 const presets = {
   'Soft Sweep': { smearAxis: 'horizontal', scanning: true, scanSpeed: 3, scanWidth: 18, background: '#06070d' },
   'Cross Smear': { smearAxis: 'both', scanning: false, background: '#0a0a12' },
+  'Vertical Drip': { smearAxis: 'vertical', scanning: true, scanSpeed: 4, scanWidth: 22, background: '#05060d' },
+  'Wide Sweep': { smearAxis: 'horizontal', scanning: true, scanSpeed: 6, scanWidth: 50, background: '#0a0410' },
+  'Fine Scan': { smearAxis: 'horizontal', scanning: true, scanSpeed: 10, scanWidth: 6, background: '#04060a' },
+  'Manual Smear': { smearAxis: 'both', scanning: false, background: '#0b0d12' },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets });

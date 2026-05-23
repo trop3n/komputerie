@@ -1,28 +1,34 @@
 # AGENTS.md
 
-Static HTML/JS/CSS project — no build, no tests, no linters, no package.json. Serve with any HTTP server (ES modules require it):
+Static HTML/JS/CSS project — **no build, no bundler, no tests, no package.json**. Serve with any static HTTP server (ES modules + the vendored ffmpeg need same-origin):
 
 ```
 python3 -m http.server 8000
 ```
 
-Full architecture docs are in `CLAUDE.md` — read it before making changes.
+Read `CLAUDE.md` for the full architecture before making changes.
+
+## Two tool families
+
+- **antlii-stack** (current work) — `tools/<name>/` built on **p5.js + Tweakpane + Paper.js + opentype.js** via the shared shell in `js/antlii/`. Libraries load per page (Tweakpane through an import map; p5/paper/opentype as global `<script>`s; JSZip via dynamic import; **ffmpeg.wasm vendored** in `js/vendor/ffmpeg/`). Entry: root `index.html`.
+- **Legacy raster** — original vanilla Canvas/WebGL tools importing `js/media-source.js`, sidebar+canvas layout. Untouched, preserved. Entry: `classic.html`.
 
 ## Key constraints
 
-- **No tool-specific CSS files.** All tools share `css/style.css`. Use existing classes.
-- **No comments in code** unless the user asks for them.
-- **No build steps ever.** Files are served as-is. Do not introduce bundlers, transpilers, or npm packages.
-- **No tests to run.** Verify changes by opening in a browser.
+- **No build steps, ever.** No bundlers/transpilers/npm. Libs come from CDN + import maps; ffmpeg is vendored for offline-safe, same-origin MP4.
+- **No tool-specific CSS files** — everything uses `css/style.css`.
+- **Comment-light code.** The one exception: each `js/antlii/` shared module carries a short header comment documenting its role/API.
+- **No tests** — verify by opening the tool in a browser and checking the console + canvas.
+- **Dev cache:** `python -m http.server` sends no cache headers; hard-refresh after editing a shared module or the browser serves a stale copy.
 
 ## Adding a tool
 
-Follow the checklist in `CLAUDE.md` ("Adding a New Tool"). Copy an existing tool's `index.html` + JS as a template — every tool uses the same sidebar+canvas layout, same variable names (`canvas`, `ctx`, `app`, `mediaSource`, `animId`), and same patterns for fullscreen/save/range inputs.
+Follow the `CLAUDE.md` checklist. The fast path: copy the closest existing tool of the same type and adapt.
+- antlii-stack types: raster → `tools/ritm`, vector → `tools/splitx`, shader → `tools/refract-tool`, 3D → `tools/plain`, typography → `tools/textr`, image-manip → `tools/skaaan`.
+- Legacy: copy any `tools/<name>/` and reuse `js/media-source.js` + `css/style.css` classes.
 
-## WebGL tools
+## Shared code
 
-`tools/mesher/` and `tools/refract/` use WebGL. These are the only tools with shaders — don't assume Canvas 2D patterns apply there.
-
-## Standalone tools
-
-`cellular-automata`, `srt2video`, and `flipdigits` do **not** import `js/media-source.js`. All other tools do.
+- `js/antlii/` — `shell.js` (createTool), `presets.js` (attachPresets), `export.js` (attachExport: PNG/SVG/video/frames), `noise.js`, `typography.js`, `shapes.js`, `palette.js`, `previews.js` (landing thumbnails).
+- `js/media-source.js`, `js/color.js`, `js/previews.js` — legacy shared modules.
+- `js/vendor/ffmpeg/` — vendored ffmpeg.wasm (`pkg/` ESM + `core/` single-threaded core; `ffmpeg-core.wasm` ~32 MB, committed).

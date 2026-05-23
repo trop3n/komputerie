@@ -128,5 +128,11 @@ const presets = {
   Poster: { contrast: 45, saturation: 40, posterize: 5, duotone: false, mosaic: 1, mirror: 'none', scanlines: 0 },
   Kaleido: { contrast: 25, saturation: 70, mosaic: 4, mirror: 'quad', posterize: 6, grain: 6 },
   CRT: { contrast: 30, saturation: 50, mosaic: 3, scanlines: 40, grain: 14, mirror: 'none' },
+  Risograph: { contrast: 35, saturation: -20, posterize: 0, duotone: true, shadow: '#1b2a4a', highlight: '#f4a259', mosaic: 1, mirror: 'none', grain: 18 },
+  Mosaic: { contrast: 20, saturation: 50, mosaic: 16, posterize: 0, duotone: false, mirror: 'none', grain: 0, scanlines: 0 },
+  'Pop Art': { contrast: 40, saturation: 80, posterize: 4, duotone: false, mosaic: 2, mirror: 'quad', grain: 4 },
+  Noir: { brightness: -10, contrast: 50, saturation: -100, posterize: 6, duotone: false, mosaic: 1, mirror: 'none', grain: 12, scanlines: 0 },
+  VHS: { contrast: 25, saturation: 40, posterize: 0, duotone: false, mosaic: 2, scanlines: 55, grain: 20, mirror: 'none' },
+  'Kaleido Mosaic': { contrast: 25, saturation: 40, mosaic: 6, mirror: 'quad', duotone: true, shadow: '#06121f', highlight: '#7ad7f0', grain: 6 },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets, onApply: () => { dirty = true; } });

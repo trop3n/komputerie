@@ -109,6 +109,12 @@ const presets = {
   Tide: { cellCount: 18, growth: 90, pulse: 0.4, rings: 4, c0: '#0a3d62', c1: '#3c6382', c2: '#82ccdd', background: '#0a0e17', accent: '#e8e8e8' },
   Spore: { cellCount: 30, growth: 70, pulse: 0.6, rings: 2, softness: 0.4, c0: '#1b4332', c1: '#40916c', c2: '#b7e4c7', background: '#06120c', accent: '#d8f3dc' },
   Ember: { cellCount: 14, growth: 130, pulse: 0.5, rings: 5, softness: 0.55, c0: '#3a0ca3', c1: '#e63946', c2: '#fcbf49', background: '#0c0410', accent: '#ffe8d6' },
+  Reef: { cellCount: 26, growth: 80, pulse: 0.5, rings: 3, softness: 0.45, c0: '#03452c', c1: '#1b998b', c2: '#a8e6cf', background: '#04140e', accent: '#e8fff5', label: 'BIOM / REEF' },
+  Nucleus: { cellCount: 8, growth: 180, pulse: 0.4, rings: 6, softness: 0.5, c0: '#1a1a40', c1: '#4d4dff', c2: '#b8b8ff', background: '#06060f', accent: '#eaeaff', label: 'BIOM / NUCLEUS' },
+  Coral: { cellCount: 20, growth: 100, pulse: 0.7, rings: 4, softness: 0.5, c0: '#5c0a2e', c1: '#e63946', c2: '#ffd6a5', background: '#0e0408', accent: '#ffe8d6', label: 'BIOM / CORAL' },
+  Frost: { cellCount: 16, growth: 110, pulse: 0.3, rings: 2, softness: 0.4, c0: '#2c3e50', c1: '#7f9cb3', c2: '#eaf2f8', background: '#0a0f14', accent: '#ffffff', label: 'BIOM / FROST' },
+  Bloom: { cellCount: 34, growth: 70, pulse: 0.6, rings: 3, softness: 0.5, speed: 0.6, c0: '#3a0ca3', c1: '#c8408f', c2: '#ffcad4', background: '#0a0410', accent: '#ffe5ec', label: 'BIOM / BLOOM' },
+  Mono: { cellCount: 18, growth: 120, pulse: 0.45, rings: 4, softness: 0.5, c0: '#1c1c1c', c1: '#777777', c2: '#e0e0e0', background: '#0d0d0d', accent: '#f5f5f5', label: 'BIOM / MONO' },
 };
 function randomize(p) {
   p.cellCount = 6 + (Math.random() * 50 | 0);

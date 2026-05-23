@@ -108,6 +108,12 @@ const presets = {
   Aurora: { waveform: 'noise', lineCount: 44, spacing: 9, amplitude: 120, speed: 0.6, phaseOffset: 0.08, gradient: 'linear', hueStart: 150, hueRange: 130, saturation: 78, lightness: 60, background: '#04060a' },
   Sonar: { waveform: 'sine', lineCount: 18, spacing: 20, amplitude: 80, frequency: 0.02, speed: 1.2, phaseOffset: 0.2, gradient: 'radial', hueStart: 190, hueRange: 40, saturation: 85, lightness: 60, background: '#02040a' },
   Ribbon: { waveform: 'triangle', lineCount: 30, spacing: 12, amplitude: 150, frequency: 0.012, speed: 0.8, phaseOffset: 0.15, gradient: 'wave', cycleColors: true, hueStart: 300, hueRange: 90, saturation: 80, lightness: 64, background: '#0a0410' },
+  Tide: { waveform: 'noise', lineCount: 60, spacing: 7, amplitude: 70, speed: 0.4, phaseOffset: 0.06, gradient: 'linear', hueStart: 190, hueRange: 50, saturation: 70, lightness: 58, background: '#020308' },
+  Static: { waveform: 'square', lineCount: 40, spacing: 9, amplitude: 60, frequency: 0.03, speed: 2.2, phaseOffset: 0.1, gradient: 'linear', hueStart: 0, hueRange: 0, saturation: 0, lightness: 80, strokeWeight: 1.5, background: '#0a0a0a' },
+  Seismograph: { waveform: 'sawtooth', lineCount: 24, spacing: 16, amplitude: 110, frequency: 0.015, speed: 1.5, gradient: 'radial', hueStart: 10, hueRange: 40, saturation: 80, lightness: 60, background: '#08040a' },
+  Contour: { waveform: 'noise', lineCount: 80, spacing: 5, amplitude: 90, speed: 0.3, phaseOffset: 0.05, strokeWeight: 1, strokeOpacity: 70, gradient: 'linear', hueStart: 120, hueRange: 100, saturation: 60, lightness: 62, background: '#03060a' },
+  'Neon Pulse': { waveform: 'sine', lineCount: 28, spacing: 14, amplitude: 100, frequency: 0.018, speed: 1.0, cycleColors: true, cycleSpeed: 1.2, hueStart: 280, hueRange: 120, saturation: 90, lightness: 65, strokeWeight: 2.5, gradient: 'linear', background: '#050010' },
+  Heatmap: { waveform: 'triangle', lineCount: 36, spacing: 11, amplitude: 130, frequency: 0.01, speed: 0.7, gradient: 'wave', hueStart: 20, hueRange: 60, saturation: 90, lightness: 60, background: '#0a0402' },
 };
 
 function randomize(p) {

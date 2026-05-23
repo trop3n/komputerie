@@ -120,5 +120,10 @@ attachExport(tool.pages.export, { getCanvas: tool.getCanvas, name: 'drift' });
 const presets = {
   Bloom: { count: 16, spread: 0.34, scale: 1, scaleVar: 0.4, driftSpeed: 0.5, rotSpeed: 0.4, trail: 0.9, blend: 'add', background: '#04060a' },
   Echoes: { count: 8, spread: 0.2, scale: 1.2, scaleVar: 0.2, driftSpeed: 0.25, rotSpeed: 0.15, trail: 0.95, blend: 'normal', background: '#0a0a12' },
+  Swarm: { count: 30, spread: 0.4, scale: 0.7, scaleVar: 0.4, driftSpeed: 0.7, rotSpeed: 0.5, trail: 0.92, blend: 'add', background: '#03040a' },
+  Comet: { count: 6, spread: 0.25, scale: 1.3, scaleVar: 0.2, driftSpeed: 0.4, rotSpeed: 0.2, trail: 0.96, blend: 'add', background: '#02030a' },
+  Mandala: { count: 18, spread: 0.3, scale: 0.9, scaleVar: 0.1, rotation: 0, driftSpeed: 0.3, rotSpeed: 0.8, trail: 0.9, blend: 'add', background: '#06040c' },
+  Stamp: { count: 10, spread: 0.35, scale: 1.0, scaleVar: 0.3, driftSpeed: 0.5, rotSpeed: 0.3, trail: 0.85, blend: 'normal', background: '#0a0a12' },
+  Vapor: { count: 40, spread: 0.45, scale: 0.5, scaleVar: 0.5, driftSpeed: 0.9, rotSpeed: 0.6, trail: 0.95, blend: 'add', background: '#04060a' },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets, onApply: clearBuf });

@@ -124,6 +124,11 @@ const presets = {
   Dots: { text: 'RASTR', shape: 'circle', gridX: 56, gridY: 28, shapeScale: 0.9, coverageSize: true, threshold: 0.4, colorMode: 'transition', paletteCount: 3, c0: '#00cec9', c1: '#6c5ce7', c2: '#ffffff', background: '#0a0a12' },
   Blocks: { text: 'TYPE', shape: 'square', gridX: 40, gridY: 40, shapeScale: 1.0, coverageSize: false, threshold: 0.5, colorMode: 'sequence', paletteCount: 2, c0: '#fdcb6e', c1: '#e17055', background: '#101014' },
   Halftone: { text: 'HALF', shape: 'circle', gridX: 90, gridY: 45, shapeScale: 1.1, coverageSize: true, threshold: 0.25, colorMode: 'solid', paletteCount: 1, c0: '#ffffff', background: '#000000' },
+  Diamonds: { text: 'RASTR', font: 'Archivo Black', shape: 'diamond', gridX: 60, gridY: 30, shapeScale: 1.0, coverageSize: true, threshold: 0.4, colorMode: 'transition', paletteCount: 3, c0: '#fd79a8', c1: '#6c5ce7', c2: '#00cec9', background: '#06060f' },
+  'Cross Stitch': { text: 'TYPE', shape: 'cross', gridX: 48, gridY: 24, shapeScale: 1.0, coverageSize: false, threshold: 0.45, colorMode: 'sequence', paletteCount: 2, c0: '#ffeaa7', c1: '#e17055', background: '#0a0602' },
+  'Fine Mesh': { text: 'MESH', shape: 'circle', gridX: 110, gridY: 55, shapeScale: 1.1, coverageSize: true, threshold: 0.3, colorMode: 'solid', paletteCount: 1, c0: '#dfe6e9', background: '#0b0d12' },
+  'Ring Grid': { text: 'O', font: 'Anton', shape: 'ring', gridX: 40, gridY: 40, shapeScale: 1.0, coverageSize: true, threshold: 0.35, colorMode: 'transition', paletteCount: 2, c0: '#00cec9', c1: '#0984e3', background: '#02060a' },
+  'Star Field': { text: 'STAR', font: 'Bungee', shape: 'star', gridX: 50, gridY: 25, shapeScale: 1.2, coverageSize: true, threshold: 0.4, colorMode: 'sequence', paletteCount: 3, c0: '#ffeaa7', c1: '#fab1a0', c2: '#6c5ce7', background: '#06040c' },
 };
 function randomize(p) {
   const shapes = Object.values(SHAPE_OPTIONS);

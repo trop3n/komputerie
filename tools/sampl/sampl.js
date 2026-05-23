@@ -125,6 +125,11 @@ const presets = {
   Letterform: { text: 'A', shape: 'circle', density: 60, shapeSize: 14, sizeVar: 0.3, colorMode: 'transition', paletteCount: 3, c0: '#ff7675', c1: '#fdcb6e', c2: '#6c5ce7', render: 'fill', background: '#0a0a12' },
   Outline: { text: 'S', shape: 'diamond', density: 85, shapeSize: 9, sizeVar: 0.1, alignTangent: true, rotationStep: 0, colorMode: 'transition', paletteCount: 2, c0: '#00cec9', c1: '#ffffff', render: 'fill', background: '#05060a' },
   Confetti: { text: 'O', shape: 'star', density: 45, shapeSize: 20, sizeVar: 0.6, baseRotation: 0, rotationStep: 12, colorMode: 'sequence', paletteCount: 3, c0: '#fd79a8', c1: '#fdcb6e', c2: '#6c5ce7', render: 'fill', background: '#0c0410', animate: true, jitter: 6 },
+  'Dotted R': { text: 'R', font: 'Archivo Black', shape: 'circle', density: 70, shapeSize: 12, sizeVar: 0.2, colorMode: 'transition', paletteCount: 3, c0: '#74b9ff', c1: '#6c5ce7', c2: '#fd79a8', render: 'fill', background: '#05060a' },
+  'Ring Glyph': { text: 'O', font: 'Anton', shape: 'ring', density: 55, shapeSize: 16, sizeVar: 0.3, colorMode: 'transition', paletteCount: 2, c0: '#00cec9', c1: '#ffffff', render: 'fill', background: '#04060a' },
+  'Spark Type': { text: 'M', shape: 'star', density: 40, shapeSize: 22, sizeVar: 0.5, alignTangent: true, rotationStep: 0, colorMode: 'sequence', paletteCount: 3, c0: '#fdcb6e', c1: '#e17055', c2: '#6c5ce7', render: 'fill', background: '#0c0410' },
+  'Hex Mesh': { text: 'H', font: 'Archivo Black', shape: 'hexagon', density: 90, shapeSize: 8, sizeVar: 0.1, colorMode: 'transition', paletteCount: 2, c0: '#a29bfe', c1: '#2d3436', render: 'both', strokeWeight: 0.5, background: '#dfe6e9' },
+  'Jitter Cloud': { text: 'X', font: 'Anton', shape: 'triangle', density: 65, shapeSize: 14, sizeVar: 0.6, animate: true, jitter: 10, colorMode: 'transition', paletteCount: 3, c0: '#fd79a8', c1: '#fdcb6e', c2: '#55efc4', render: 'fill', background: '#0a0a12' },
 };
 function randomize(p) {
   const shapes = Object.values(SHAPE_OPTIONS);

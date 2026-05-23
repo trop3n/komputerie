@@ -133,5 +133,11 @@ const presets = {
   'CMYK Print': { algorithm: 'cmyk', cell: 8, contrast: 15, bg: '#ffffff' },
   Terminal: { algorithm: 'ascii', cell: 9, contrast: 30, fg: '#7CFC98', bg: '#04100a', gradient: false },
   'Bayer Duotone': { algorithm: 'ordered', cell: 4, contrast: 20, gradient: true, c0: '#10092e', c1: '#e94560', c2: '#fdcb6e', bg: '#10092e' },
+  'ASCII Matrix': { algorithm: 'ascii', cell: 7, contrast: 35, fg: '#39ff14', bg: '#020a02', gradient: false },
+  'Pop Halftone': { algorithm: 'halftone', cell: 9, contrast: 20, gradient: true, c0: '#0984e3', c1: '#fd79a8', c2: '#fdcb6e', bg: '#0a0a12' },
+  Risoprint: { algorithm: 'cmyk', cell: 6, contrast: 25, bg: '#fdf6ec' },
+  'Bayer Mono': { algorithm: 'ordered', cell: 3, contrast: 30, fg: '#e8e8e8', bg: '#0a0a0a', gradient: false },
+  'Sunset Dither': { algorithm: 'ordered', cell: 5, contrast: 25, gradient: true, c0: '#2d0a31', c1: '#e94560', c2: '#ffd460', bg: '#2d0a31' },
+  'Comic CMYK': { algorithm: 'cmyk', cell: 12, contrast: 30, bg: '#ffffff' },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets, onApply: () => { dirty = true; } });

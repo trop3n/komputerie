@@ -129,5 +129,11 @@ const presets = {
   Murmuration: { count: 300, sepR: 22, sepW: 1.6, alignR: 60, alignW: 1.4, cohR: 70, cohW: 1.1, maxSpeed: 5, shape: 'triangle', size: 6, colorMode: 'velocity', trail: 18, background: '#04060d' },
   Schooling: { count: 180, sepR: 30, sepW: 1.2, alignR: 45, alignW: 1.6, cohR: 55, cohW: 1.3, maxSpeed: 4, shape: 'ellipse', size: 10, skewMode: 'speed', skewLevel: 0.7, colorMode: 'index', trail: 36, background: '#020608' },
   Confetti: { count: 220, sepR: 26, sepW: 1.8, alignR: 40, alignW: 0.8, cohR: 40, cohW: 0.9, maxSpeed: 6, shape: 'mixed', size: 8, scaleRand: 0.6, colorMode: 'velocity', trail: 60, background: '#0a0410' },
+  Starlings: { count: 360, sepR: 20, sepW: 1.8, alignR: 65, alignW: 1.6, cohR: 75, cohW: 1.2, maxSpeed: 6, maxForce: 0.2, shape: 'triangle', size: 5, colorMode: 'velocity', trail: 14, background: '#03050c' },
+  Jellies: { count: 120, sepR: 34, sepW: 1.0, alignR: 40, alignW: 1.2, cohR: 50, cohW: 1.0, maxSpeed: 2.5, shape: 'ellipse', size: 14, skewMode: 'speed', skewLevel: 0.8, colorMode: 'uniform', uniform: '#7ad7f0', trail: 40, background: '#02060a' },
+  Shoal: { count: 200, sepR: 28, sepW: 1.4, alignR: 50, alignW: 1.5, cohR: 55, cohW: 1.2, maxSpeed: 4, shape: 'rect', size: 9, skewMode: 'angle', skewLevel: 0.6, colorMode: 'index', c0: '#00cec9', c1: '#0984e3', c2: '#6c5ce7', trail: 30, background: '#020409' },
+  Sparks: { count: 150, sepR: 24, sepW: 1.6, alignR: 35, alignW: 0.9, cohR: 35, cohW: 0.8, maxSpeed: 8, maxForce: 0.3, shape: 'mixed', size: 6, scaleRand: 0.4, colorMode: 'velocity', c0: '#ffeaa7', c1: '#fab1a0', c2: '#e17055', trail: 22, background: '#0a0602' },
+  'Loner Pods': { count: 90, sepR: 40, sepW: 2.2, alignR: 30, alignW: 0.6, cohR: 30, cohW: 0.5, maxSpeed: 3.5, shape: 'triangle', size: 10, colorMode: 'index', c0: '#a29bfe', c1: '#fd79a8', c2: '#ffeaa7', trail: 50, background: '#05030c' },
+  'Vortex Flock': { count: 260, sepR: 22, sepW: 1.2, alignR: 70, alignW: 2.0, cohR: 80, cohW: 1.4, maxSpeed: 5, shape: 'ellipse', size: 8, skewMode: 'speed', skewLevel: 1.0, colorMode: 'velocity', c0: '#55efc4', c1: '#74b9ff', c2: '#a29bfe', trail: 26, background: '#02060a' },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets, onApply: restart });

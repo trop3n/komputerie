@@ -129,5 +129,9 @@ attachExport(tool.pages.export, { getCanvas: tool.getCanvas, name: 'klon' });
 const presets = {
   Blocks: { mode: 'paint', cell: 48, snap: true, brushScale: 1, showGrid: true, showSource: true, background: '#0a0a12' },
   Mosaic: { mode: 'paint', cell: 28, snap: true, brushScale: 1, showGrid: false, showSource: false, background: '#000000' },
+  'Big Tiles': { mode: 'paint', cell: 90, snap: true, brushScale: 1, showGrid: true, showSource: true, background: '#0a0a12' },
+  Micro: { mode: 'paint', cell: 16, snap: true, brushScale: 1, showGrid: false, showSource: false, background: '#000000' },
+  'Free Paint': { mode: 'paint', cell: 48, snap: false, brushScale: 1.5, showGrid: false, showSource: true, background: '#0b0d12' },
+  Rotated: { mode: 'paint', cell: 56, snap: true, brushScale: 2, rotate: 90, showGrid: true, showSource: false, background: '#0a0410' },
 };
 attachPresets(tool.pages.options, { pane: tool.pane, params, presets });

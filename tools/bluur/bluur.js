@@ -184,6 +184,12 @@ const presets = {
   Lava: { count: 14, size: 0.34, blur: 0.5, blendRange: 0.8, paletteMode: 'procedural', palettePreset: 'warm', colorSpeed: 0.1, background: '#0a0402' },
   Aurora: { count: 22, size: 0.26, blur: 0.4, blendRange: 1.0, paletteMode: 'procedural', palettePreset: 'cool', colorSpeed: 0.18, drift: 0.05, background: '#02060a' },
   Bubblegum: { count: 28, size: 0.22, sizeVar: 0.6, blur: 0.28, blendRange: 1.2, paletteMode: 'procedural', palettePreset: 'candy', colorSpeed: 0.22, background: '#0c0410' },
+  Nebula: { count: 12, size: 0.5, sizeVar: 0.3, spread: 1.0, blur: 0.7, blendRange: 0.7, paletteMode: 'procedural', palettePreset: 'cool', colorSpeed: 0.12, noiseAmount: 0.18, drift: 0.04, background: '#02040a' },
+  Mercury: { count: 18, size: 0.3, blur: 0.35, blendRange: 1.0, paletteMode: 'custom', c0: '#b2bec3', c1: '#636e72', c2: '#dfe6e9', colorSpeed: 0.08, background: '#0b0d12' },
+  Citrus: { count: 30, size: 0.2, sizeVar: 0.5, spread: 1.1, blur: 0.22, blendRange: 1.3, paletteMode: 'procedural', palettePreset: 'warm', colorSpeed: 0.2, drift: 0.06, background: '#0a0602' },
+  Plasma: { count: 24, size: 0.34, sizeVar: 0.6, spread: 1.2, blur: 0.4, blendRange: 1.5, paletteMode: 'procedural', palettePreset: 'rainbow', colorSpeed: 0.3, noiseAmount: 0.25, noiseFreq: 5, drift: 0.08, background: '#04040a' },
+  'Slow Tide': { count: 7, size: 0.6, blur: 0.9, blendRange: 0.6, paletteMode: 'procedural', palettePreset: 'cool', colorSpeed: 0.06, drift: 0.02, background: '#02060a' },
+  'Candy Foam': { count: 36, size: 0.16, sizeVar: 0.7, spread: 1.0, blur: 0.2, blendRange: 1.4, paletteMode: 'procedural', palettePreset: 'candy', colorSpeed: 0.25, background: '#0c0410' },
 };
 function randomize(p) {
   p.count = 6 + (Math.random() * (MAX - 6) | 0);

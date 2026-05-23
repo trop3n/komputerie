@@ -134,6 +134,12 @@ const presets = {
   Ocean: { heightAmp: 150, noiseScale: 0.0022, octaves: 4, wireframe: 'both', c0: '#0a3d62', c1: '#3c6382', c2: '#82ccdd', background: '#06070d' },
   Dunes: { heightAmp: 110, noiseScale: 0.0016, octaves: 3, wireframe: 'fill', tiltX: 68, c0: '#5d3a1a', c1: '#b86b2e', c2: '#f6d186', background: '#0c0703' },
   Wire: { heightAmp: 200, noiseScale: 0.003, octaves: 5, wireframe: 'lines', cols: 60, rows: 60, c0: '#1b1b3a', c1: '#6c5ce7', c2: '#a29bfe', background: '#04040a' },
+  Glacier: { heightAmp: 120, noiseScale: 0.0018, octaves: 3, wireframe: 'both', tiltX: 60, c0: '#0b3866', c1: '#2e86ab', c2: '#cae9ff', background: '#040a12' },
+  Magma: { heightAmp: 220, noiseScale: 0.003, octaves: 5, wireframe: 'fill', tiltX: 64, lightAngle: 120, c0: '#3a0603', c1: '#e63946', c2: '#ffba08', background: '#0a0302' },
+  'Grid Wire': { heightAmp: 160, noiseScale: 0.0025, octaves: 4, wireframe: 'lines', cols: 70, rows: 70, c0: '#10122b', c1: '#6c5ce7', c2: '#a29bfe', background: '#04040a' },
+  'Soft Hills': { heightAmp: 90, noiseScale: 0.0014, octaves: 3, wireframe: 'both', tiltX: 70, c0: '#1b3a2b', c1: '#52946b', c2: '#cde8d5', background: '#06120c' },
+  Crystal: { heightAmp: 280, noiseScale: 0.004, octaves: 6, wireframe: 'lines', cols: 64, rows: 64, rotateSpeed: 0.5, speed: 0.6, c0: '#241654', c1: '#7b2cbf', c2: '#e0aaff', background: '#05030c' },
+  Sand: { heightAmp: 110, noiseScale: 0.0016, octaves: 3, wireframe: 'fill', tiltX: 68, lightAngle: 40, c0: '#5d3a1a', c1: '#c98a45', c2: '#f6e0b5', background: '#0c0703' },
 };
 function randomize(p) {
   p.heightAmp = 60 + Math.random() * 280;

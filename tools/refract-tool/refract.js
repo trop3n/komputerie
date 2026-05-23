@@ -203,6 +203,12 @@ const presets = {
   'Box Glitch': { displaceMode: 'box', boxAmpX: 2.2, boxAmpY: 2.2, boxFreqX: 10, boxFreqY: 8, refractMode: 'off', seed: 601 },
   'Liquid Flow': { displaceMode: 'flow', flowComplexity: 5, flowFreq: 4, flowAmpX: 6, flowAmpY: 6, flowSpeedX: 10, flowSpeedY: 6, animate: true, refractMode: 'off' },
   'Glass Grid': { displaceMode: 'sine', sineAmpX: 1.5, sineAmpY: 1.5, sineFreqX: 12, sineFreqY: 12, refractMode: 'grid', gridAmtX: 24, gridAmtY: 24, skewX: 1.6, skewY: 1.6 },
+  Ripple: { displaceMode: 'sine', sineAmpX: 1.0, sineAmpY: 1.0, sineFreqX: 6, sineFreqY: 6, sineSpeedX: 8, sineSpeedY: 8, animate: true, refractMode: 'off', seed: 200 },
+  Shatter: { displaceMode: 'box', boxAmpX: 5, boxAmpY: 5, boxFreqX: 16, boxFreqY: 12, refractMode: 'off', seed: 777 },
+  'Lens Grid': { displaceMode: 'sine', sineAmpX: 0.6, sineAmpY: 0.6, sineFreqX: 10, sineFreqY: 10, refractMode: 'grid', gridAmtX: 16, gridAmtY: 16, skewX: 2.2, skewY: 2.2, seed: 42 },
+  Smoke: { displaceMode: 'flow', flowComplexity: 6, flowFreq: 2, flowAmpX: 8, flowAmpY: 8, flowSpeedX: 4, flowSpeedY: 3, animate: true, refractMode: 'off' },
+  Tiles: { displaceMode: 'box', boxAmpX: 1.2, boxAmpY: 1.2, boxFreqX: 6, boxFreqY: 6, refractMode: 'grid', gridAmtX: 30, gridAmtY: 30, skewX: 1.0, skewY: 1.0, seed: 123 },
+  Current: { displaceMode: 'flow', flowComplexity: 4, flowFreq: 5, flowAmpX: 5, flowAmpY: 5, flowSpeedX: 12, flowSpeedY: 8, animate: true, refractMode: 'grid', gridAmtX: 12, gridAmtY: 12, skewX: 1.5, skewY: 1.5 },
 };
 function randomize(p) {
   p.displaceMode = ['box', 'flow', 'sine'][(Math.random() * 3) | 0];

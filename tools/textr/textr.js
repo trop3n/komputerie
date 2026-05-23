@@ -173,6 +173,12 @@ const presets = {
   'Ring Type': { layout: 'ring', unit: 'letters', count: 24, spread: 1, scale: 0.7, faceOut: true, rotationStep: 0, colorMode: 'transition', paletteCount: 3, c0: '#ffffff', c1: '#6c5ce7', c2: '#00cec9', render: 'fill', background: '#0a0a12' },
   'Spiral Drift': { layout: 'spiral', unit: 'letters', count: 90, spread: 1.1, scale: 0.45, scaleVar: 0.4, faceOut: true, colorMode: 'transition', paletteCount: 3, c0: '#fdcb6e', c1: '#e17055', c2: '#6c5ce7', render: 'fill', background: '#08060c' },
   'Grid Stack': { layout: 'grid', unit: 'block', count: 36, spread: 1, scale: 0.5, scaleVar: 0, baseRotation: 0, rotationStep: 0, colorMode: 'sequence', paletteCount: 2, c0: '#ffffff', c1: '#b2bec3', render: 'fill', background: '#101014' },
+  Stacked: { text: 'ANTLII WORK STUDIO', font: 'Archivo Black', layout: 'row', unit: 'words', count: 12, spread: 1.4, scale: 0.8, colorMode: 'transition', paletteCount: 2, c0: '#ffffff', c1: '#6c5ce7', render: 'fill', background: '#0a0a12' },
+  'Outline Ring': { layout: 'ring', unit: 'letters', count: 30, spread: 1.1, scale: 0.8, faceOut: true, render: 'stroke', strokeWeight: 1.5, colorMode: 'transition', paletteCount: 3, c0: '#00cec9', c1: '#6c5ce7', c2: '#fd79a8', background: '#05060a' },
+  'Confetti Type': { font: 'Bungee', layout: 'grid', unit: 'letters', count: 80, spread: 1.2, scale: 0.4, scaleVar: 0.6, baseRotation: 0, rotationStep: 15, colorMode: 'sequence', paletteCount: 3, c0: '#fdcb6e', c1: '#e17055', c2: '#6c5ce7', render: 'fill', background: '#0c0410' },
+  Vortex: { font: 'Anton', layout: 'spiral', unit: 'letters', count: 60, spread: 1.0, scale: 0.5, faceOut: true, animate: true, animSpeed: 0.4, colorMode: 'transition', paletteCount: 3, c0: '#a29bfe', c1: '#74b9ff', c2: '#ffffff', render: 'fill', background: '#04040a' },
+  Marquee: { text: 'BIG', font: 'Anton', layout: 'row', unit: 'block', count: 6, spread: 1.6, scale: 0.9, colorMode: 'solid', paletteCount: 1, c0: '#ffffff', render: 'fill', background: '#e94560' },
+  'Mono Grid': { font: 'Major Mono', layout: 'grid', unit: 'block', count: 24, spread: 1, scale: 0.55, colorMode: 'sequence', paletteCount: 2, c0: '#dfe6e9', c1: '#636e72', render: 'fill', background: '#101014' },
 };
 function randomize(p) {
   const layouts = ['grid', 'row', 'ring', 'spiral'];
