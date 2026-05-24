@@ -1,351 +1,778 @@
-// FLAKE — generative symmetrical vector patterns on a grid. A parametric tile
-// field where each cell's shape scale/rotation is driven by distance-to-center
-// (SDF-style) and a multi-octave noise vector field, with swirl, a parametric
-// polar mask, and looped motion. Vector rendering via Paper.js with real SVG
-// export plus custom-SVG and raster-image-mask drag-drop. The parametric engine
-// is ported from the repo's raster `tools/flake/flake.js`.
+// FLAKE — generative symmetrical patterns from a dense point field. A faithful
+// re-implementation (homage) of antlii's FLAKE engine: thousands of shape stamps
+// over a shuffled grid, where a single 4D-simplex sample per point drives BOTH
+// the stamp's size (a triangle wave within each palette band → concentric rings)
+// AND its color, with radial branch symmetry, swirl, a parametric polar mask, and
+// looped motion. Shapes blend on a transparent buffer, then composite over the bg.
+// Original code/shapes/presets; behaviour and parameter model studied from the
+// public antlii.github.io/flake-tool source. Math runs in a fixed render-space
+// (the ratio resolution) so parameter magnitudes match the reference.
 import { createTool } from '../../js/antlii/shell.js';
 import { attachPresets } from '../../js/antlii/presets.js';
 import { attachExport } from '../../js/antlii/export.js';
-import { noise2D } from '../../js/antlii/noise.js';
+import { createNoise4D } from 'simplex-noise';
 
-const paper = window.paper;
+/////////////////////////////////////////////////////////////////////////////
+// Small math helpers (plain JS so the port reads like the reference)
+/////////////////////////////////////////////////////////////////////////////
+const PI = Math.PI, TWO_PI = Math.PI * 2, HALF_PI = Math.PI / 2;
+const { sin, cos, atan2, sqrt, pow, log, abs, floor, ceil } = Math;
+const min = Math.min, max = Math.max;
+const map = (v, a, b, c, d) => c + (d - c) * ((v - a) / (b - a));
+const lerp = (a, b, t) => a + (b - a) * t;
+const constrain = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const dist = (x0, y0, x1, y1) => Math.hypot(x1 - x0, y1 - y0);
+const round2 = (v, n = 0) => { const f = 10 ** n; return Math.round(v * f) / f; };
+
+// Alea — small seedable PRNG (Baagøe). Feeds the simplex generator so a seed
+// reproduces a pattern exactly, like the reference's alea+simplex pairing.
+function alea(seed) {
+  let s0 = 0, s1 = 0, s2 = 0, c = 1;
+  const mash = (() => { let n = 0xefc8249d; return (data) => {
+    data = String(data);
+    for (let i = 0; i < data.length; i++) {
+      n += data.charCodeAt(i);
+      let h = 0.02519603282416938 * n;
+      n = h >>> 0; h -= n; h *= n; n = h >>> 0; h -= n; n += h * 0x100000000;
+    }
+    return (n >>> 0) * 2.3283064365386963e-10;
+  }; })();
+  s0 = mash(' '); s1 = mash(' '); s2 = mash(' ');
+  s0 -= mash(seed); if (s0 < 0) s0 += 1;
+  s1 -= mash(seed); if (s1 < 0) s1 += 1;
+  s2 -= mash(seed); if (s2 < 0) s2 += 1;
+  return () => {
+    const t = 2091639 * s0 + c * 2.3283064365386963e-10;
+    s0 = s1; s1 = s2; return (s2 = t - (c = t | 0));
+  };
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Easing (standard Penner set, keyed by label like the reference)
+/////////////////////////////////////////////////////////////////////////////
+const EASE = {
+  none: (t) => t, Linear: (t) => t,
+  'Sine In': (t) => 1 - cos((t * PI) / 2),
+  'Sine Out': (t) => sin((t * PI) / 2),
+  'Sine In Out': (t) => -(cos(PI * t) - 1) / 2,
+  'Quad In': (t) => t * t,
+  'Quad Out': (t) => 1 - (1 - t) * (1 - t),
+  'Quad In Out': (t) => (t < 0.5 ? 2 * t * t : 1 - pow(-2 * t + 2, 2) / 2),
+  'Cubic In': (t) => t * t * t,
+  'Cubic Out': (t) => 1 - pow(1 - t, 3),
+  'Cubic In Out': (t) => (t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2),
+  'Expo In': (t) => (t === 0 ? 0 : pow(2, 10 * t - 10)),
+  'Expo Out': (t) => (t === 1 ? 1 : 1 - pow(2, -10 * t)),
+  'Expo In Out': (t) => (t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? pow(2, 20 * t - 10) / 2 : (2 - pow(2, -20 * t + 10)) / 2),
+  'Circ In': (t) => 1 - sqrt(1 - t * t),
+  'Circ Out': (t) => sqrt(1 - pow(t - 1, 2)),
+  'Circ In Out': (t) => (t < 0.5 ? (1 - sqrt(1 - pow(2 * t, 2))) / 2 : (sqrt(1 - pow(-2 * t + 2, 2)) + 1) / 2),
+};
+const EASE_OPTS = Object.fromEntries(['none', 'Linear', 'Sine In', 'Sine Out', 'Sine In Out', 'Quad In', 'Quad Out', 'Quad In Out', 'Cubic In', 'Cubic Out', 'Cubic In Out', 'Expo In', 'Expo Out', 'Expo In Out', 'Circ In', 'Circ Out', 'Circ In Out'].map((k) => [k === 'none' ? 'None' : k, k]));
+
+/////////////////////////////////////////////////////////////////////////////
+// Option maps
+/////////////////////////////////////////////////////////////////////////////
+const RATIOS = {
+  '2:1': [480, 240], '16:9': [640, 360], '3:2': [480, 320], '4:3': [480, 360],
+  '5:4': [600, 480], '1:1': [480, 480], '4:5': [480, 600], '3:4': [360, 480],
+  '2:3': [320, 480], '9:16': [360, 640], '1:2': [240, 480],
+};
+const RATIO_OPTS = Object.fromEntries(Object.keys(RATIOS).map((k) => [k, k]));
+const BLENDS = {
+  Normal: 'source-over', XOR: 'xor', Lighter: 'lighter', Multiply: 'multiply',
+  Screen: 'screen', Overlay: 'overlay', Darken: 'darken', Lighten: 'lighten',
+  'Color Dodge': 'color-dodge', 'Color Burn': 'color-burn', 'Hard Light': 'hard-light',
+  'Soft Light': 'soft-light', Exclusion: 'exclusion', Difference: 'difference',
+};
+const STYLE_OPTS = { Fill: 'fill', Stroke: 'stroke', Mixed: 'mixed' };
+const COLOR_OPTS = { 'Solid Color': 'color', 'Palette Sequence': 'sequence', 'Palette Transition': 'transition' };
+const FREQ_OPTS = { Sin: 'sin', Cos: 'cos' };
+const SWIRL_OPTS = { None: 'none', 'Wave Effect': 'wave', 'Rotary Effect': 'rotary' };
+const SYMMETRY_OPTS = { Standard: 'standard', Mirrored: 'mirror' };
+const MOTION_OPTS = { 'Scaling (One Way)': 'oneway', 'Scaling (Loop)': 'loop', 'Noise (Loop)': 'noise' };
+const MASK_OPTS = { None: 'none', Parametric: 'parametric', 'Raster Image': 'image' };
+const MASK_BRANCH_OPTS = { 'Ignore Noise Branch Angle': 'ignore', 'Apply Noise Branch Angle': 'apply' };
+const BG_OPTS = { Custom: 'custom', Transparent: 'transparent' };
+
+/////////////////////////////////////////////////////////////////////////////
+// Shape library — built as Path2D in a 0..10 box (centre offset = 5,5), so a
+// `scale` of N draws a stamp ~10·N px. All shapes authored here (no copied art).
+/////////////////////////////////////////////////////////////////////////////
+const SHAPE_OPTS = {
+  Square: 'square', Circle: 'circle', Oval: 'oval', Triangle: 'triangle',
+  Diamond: 'diamond', Hexagon: 'hexagon', Star: 'star', Spark: 'spark',
+  Cross: 'cross', Plus: 'plus', Ring: 'ring', Heart: 'heart', Flower: 'flower',
+  Flake: 'flake', 'Quad Dots': 'quad', 'Three Dots': 'threedots', 'Custom (SVG)': 'custom',
+};
+const SHAPE_W = 5, SHAPE_H = 5; // half-extents of the 0..10 box
+
+// Each shape is one or more closed polylines (point arrays) in a 0..10 box, so
+// the SAME geometry yields a Path2D (canvas) and an SVG `d` string (export).
+const arcPts = (cx, cy, rx, ry, n = 48, rot = 0) => Array.from({ length: n }, (_, i) => {
+  const a = rot + (i / n) * TWO_PI; return [cx + cos(a) * rx, cy + sin(a) * ry];
+});
+const ngonPts = (cx, cy, r, n, rot = -HALF_PI) => Array.from({ length: n }, (_, i) => {
+  const a = rot + (i / n) * TWO_PI; return [cx + cos(a) * r, cy + sin(a) * r];
+});
+const starPts = (cx, cy, ro, ri, points, rot = -HALF_PI) => Array.from({ length: points * 2 }, (_, i) => {
+  const a = rot + (i / (points * 2)) * TWO_PI; const r = i % 2 ? ri : ro; return [cx + cos(a) * r, cy + sin(a) * r];
+});
+function shapeSubpaths(type) {
+  switch (type) {
+    case 'square': return [[[0, 0], [10, 0], [10, 10], [0, 10]]];
+    case 'circle': return [arcPts(5, 5, 5, 5)];
+    case 'oval': return [arcPts(5, 5, 5, 2.9)];
+    case 'triangle': return [ngonPts(5, 5.2, 5, 3)];
+    case 'diamond': return [ngonPts(5, 5, 5, 4, 0)];
+    case 'hexagon': return [ngonPts(5, 5, 5, 6)];
+    case 'star': return [starPts(5, 5, 5, 2.1, 5)];
+    case 'spark': return [starPts(5, 5, 5, 1.2, 4)];
+    case 'flake': return [starPts(5, 5, 5, 1.7, 6)];
+    case 'cross': return [starPts(5, 5, 5, 1.6, 4, -HALF_PI + PI / 4)];
+    case 'plus': { const t = 3, a = 5 - t / 2, b = 5 + t / 2; return [[[a, 0], [b, 0], [b, a], [10, a], [10, b], [b, b], [b, 10], [a, 10], [a, b], [0, b], [0, a], [a, a]]]; }
+    case 'ring': return [arcPts(5, 5, 5, 5), arcPts(5, 5, 2.6, 2.6)];
+    case 'heart': return [Array.from({ length: 49 }, (_, i) => { const t = (i / 48) * TWO_PI; return [5 + 0.31 * (16 * sin(t) ** 3), 5 - 0.31 * (13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t)) - 0.4]; })];
+    case 'flower': { const s = []; for (let i = 0; i < 6; i++) { const a = (i / 6) * TWO_PI; s.push(arcPts(5 + cos(a) * 3, 5 + sin(a) * 3, 2.1, 2.1, 24)); } s.push(arcPts(5, 5, 2.3, 2.3, 24)); return s; }
+    case 'quad': return [[2.5, 2.5], [7.5, 2.5], [2.5, 7.5], [7.5, 7.5]].map(([x, y]) => arcPts(x, y, 2.5, 2.5, 24));
+    case 'threedots': return [[5, 2.4], [2.4, 7.2], [7.6, 7.2]].map(([x, y]) => arcPts(x, y, 2.2, 2.2, 24));
+    default: return [arcPts(5, 5, 5, 5)];
+  }
+}
+function subpathsToD(subs) {
+  return subs.map((pts) => 'M' + pts.map(([x, y], i) => `${i ? 'L' : ''}${round2(x, 3)},${round2(y, 3)}`).join(' ') + 'Z').join(' ');
+}
+// Set both representations from the active shape (custom = a dropped SVG path).
+function refreshShape() {
+  shape.d = shape.type === 'custom' && shape.customD ? shape.customD : subpathsToD(shapeSubpaths(shape.type));
+  shape.path = new Path2D(shape.d);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// State (faithful defaults; preset NAMES & palettes are original)
+/////////////////////////////////////////////////////////////////////////////
+const seed = { value: 0, max: 100000 };
+const cnv = { scale: 0.9, ratio: '1:1', animation: false, frame: 0, bg: { mode: 'custom', custom: '#FFFFFF' } };
 
 const params = {
-  cellsX: 10, cellsY: 10, seed: 0,
-  cellOffsetX: 0, cellOffsetY: 0, cellRotation: 0,
-  gridMapX: 6, gridMapY: 6, symmetry: 'standard',
-  shapeType: 'flake', shapeScale: 0.75, scalePower: 0, scalingEase: 'none',
-  baseRotation: 0, angleMult: 1, renderStyle: 'fill',
-  freqLayers: 4, freqBase: 0.07, freqAmplify: 0.5, freqMode: 'cos', branchAmount: 1, freqEasing: 'none',
-  swirlMode: 'none', swirlFreq: 1, swirlAmplify: 0, swirlBase: 0,
-  maskType: 'none', maskBranches: 6, maskRound: 0, maskInner: 0.1, maskOuter: 0.9,
-  maskImageInfluence: 80,
-  motionType: 'none', motionSpeed: 0.5, motionAmplify: 20,
-  colorMode: 'paletteTransition', paletteCount: 4,
-  c0: '#6c5ce7', c1: '#ffffff', c2: '#b2bec3', c3: '#fdcb6e', c4: '#00cec9',
-  blendMode: 'multiply', background: '#ffffff',
+  count: { value: 5000, min: 500, max: 16000, step: 25 },
+  grid: { x: 2, y: 2 },
+  scale: { value: 2.5, power: 1.4, easeType: 'none', easeOffset: 0.5 },
+  stroke: { width: 1, scale: false, minWidth: 0.25, maxWidth: 3 },
+  color: { mixed: 0.5, style: 'fill', blend: 'source-over', type: 'transition', base: '#0055ff' },
+  branch: { amount: 4, amountMax: 10, angle: 1, symmetry: 'standard' },
+  freq: { mode: 'sin', easeType: 'none', easeOffset: 0, layers: 12, minLayers: 2, maxLayers: 16, base: 0.55, amp: 0.3 },
+  swirl: { mode: 'none', base: 0, amp: 0.25, freq: 0.25 },
+  rotate: { mult: -0.17, shape: 0.17 },
+  motion: { mode: 'noise', amp: 20 },
 };
-
-let CW = 800, CH = 600;
-let customItem = null;     // dropped SVG used as the shape
-let maskImg = null;        // dropped raster image used as a mask
-const maskCanvas = document.createElement('canvas');
-const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
-let maskData = null, maskW = 0, maskH = 0;
-
-// ---- Easing ----
-const easings = {
-  none: () => 1, linear: (t) => t,
-  sineIn: (t) => 1 - Math.cos(t * Math.PI / 2), sineOut: (t) => Math.sin(t * Math.PI / 2),
-  sineInOut: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
-  quadIn: (t) => t * t, quadOut: (t) => 1 - (1 - t) * (1 - t),
-  quadInOut: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
-  cubicIn: (t) => t * t * t, cubicOut: (t) => 1 - Math.pow(1 - t, 3),
-  cubicInOut: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
-  expoIn: (t) => t === 0 ? 0 : Math.pow(2, 10 * t - 10), expoOut: (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
-  expoInOut: (t) => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2,
-  circIn: (t) => 1 - Math.sqrt(1 - t * t), circOut: (t) => Math.sqrt(1 - Math.pow(t - 1, 2)),
-  circInOut: (t) => t < 0.5 ? (1 - Math.sqrt(1 - 4 * t * t)) / 2 : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2,
+const pattern = { seed: { value: 0, random: 0 }, cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, rotate: 0 };
+const mask = {
+  mode: 'none', branchMode: 'ignore', branch: 0, maxBranch: 12, branchRound: false,
+  margin: { min: 0.25, max: 0.9 },
+  image: { src: null, lum: null, scale: 1, brightness: 0, contrast: 1, invertLight: false },
 };
-const EASE_OPTS = { None: 'none', Linear: 'linear', 'Sine In': 'sineIn', 'Sine Out': 'sineOut', 'Sine In-Out': 'sineInOut', 'Quad In': 'quadIn', 'Quad Out': 'quadOut', 'Quad In-Out': 'quadInOut', 'Cubic In': 'cubicIn', 'Cubic Out': 'cubicOut', 'Cubic In-Out': 'cubicInOut', 'Expo In': 'expoIn', 'Expo Out': 'expoOut', 'Expo In-Out': 'expoInOut', 'Circ In': 'circIn', 'Circ Out': 'circOut', 'Circ In-Out': 'circInOut' };
-function applyEasing(t, mode) { return (easings[mode] || easings.none)(Math.max(0, Math.min(1, t))); }
+const shape = { type: 'flake', width: SHAPE_W, height: SHAPE_H, path: null, d: null, customD: null };
+const palette = {
+  array: ['#FFFFFF', '#D1D1D1', '#808080', '#585858', '#000000'],
+  use: [true, true, true, true, true],
+  temp: [],
+};
+const rec = { frameRate: 30, length: { value: 10, min: 1, max: 60 } };
 
-// ---- Color ----
-function interpolateHex(a, b, t) {
-  const r1 = parseInt(a.slice(1, 3), 16), g1 = parseInt(a.slice(3, 5), 16), b1 = parseInt(a.slice(5, 7), 16);
-  const r2 = parseInt(b.slice(1, 3), 16), g2 = parseInt(b.slice(3, 5), 16), b2 = parseInt(b.slice(5, 7), 16);
+// Snapshot of defaults so each preset applies onto a clean slate (no carry-over
+// of params a preset doesn't mention). Captured before the buffer/shape exist.
+const DEFAULTS = structuredClone({ params, pattern, mask, cnv, palette, shape });
+
+/////////////////////////////////////////////////////////////////////////////
+// Color helpers
+/////////////////////////////////////////////////////////////////////////////
+function interpHex(a, b, t) {
+  const pa = a.replace('#', ''), pb = b.replace('#', '');
+  const r1 = parseInt(pa.slice(0, 2), 16), g1 = parseInt(pa.slice(2, 4), 16), b1 = parseInt(pa.slice(4, 6), 16);
+  const r2 = parseInt(pb.slice(0, 2), 16), g2 = parseInt(pb.slice(2, 4), 16), b2 = parseInt(pb.slice(4, 6), 16);
   const h = (v) => Math.round(v).toString(16).padStart(2, '0');
-  return `#${h(r1 + (r2 - r1) * t)}${h(g1 + (g2 - g1) * t)}${h(b1 + (b2 - b1) * t)}`;
+  return `#${h(lerp(r1, r2, t))}${h(lerp(g1, g2, t))}${h(lerp(b1, b2, t))}`;
 }
-function paletteColors() {
-  return [params.c0, params.c1, params.c2, params.c3, params.c4].slice(0, Math.max(1, params.paletteCount));
-}
-function getFillColor(dist, mode, colors) {
-  if (!colors.length) return '#ffffff';
-  if (mode === 'solidColor') return colors[0];
-  if (mode === 'paletteSequence') return colors[Math.min(Math.floor(dist * colors.length), colors.length - 1)];
-  const t = dist * (colors.length - 1);
-  const i = Math.min(Math.floor(t), colors.length - 2);
-  return interpolateHex(colors[i], colors[Math.min(i + 1, colors.length - 1)], t - i);
-}
-
-// ---- Vector shape library (centered at origin) ----
-function makeShape(type, size) {
-  const P = paper, r = size / 2;
-  switch (type) {
-    case 'circle': return new P.Path.Circle([0, 0], r);
-    case 'oval': return new P.Path.Ellipse({ center: [0, 0], radius: [r, r / 2] });
-    case 'square': return new P.Path.Rectangle({ point: [-r, -r], size: [size, size] });
-    case 'triangle': { const p = new P.Path([[0, -r], [-r * 0.866, r * 0.5], [r * 0.866, r * 0.5]]); p.closed = true; return p; }
-    case 'star': return new P.Path.Star({ center: [0, 0], points: 5, radius1: r, radius2: r * 0.5 });
-    case 'cross': { const t = size * 0.3; return new P.Group([new P.Path.Rectangle({ point: [-t / 2, -r], size: [t, size] }), new P.Path.Rectangle({ point: [-r, -t / 2], size: [size, t] })]); }
-    case 'heart': { const pts = []; for (let a = 0; a < Math.PI * 2; a += 0.1) { const hx = r * 0.8 * (16 * Math.pow(Math.sin(a), 3)) / 16; const hy = -r * 0.8 * (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) / 16; pts.push([hx, hy]); } const p = new P.Path(pts); p.closed = true; return p; }
-    case 'arrow': { const h = size * 0.48, w = size * 0.30, n = h * 0.30; const p = new P.Path([[h, 0], [0, -w], [-n, -w * 0.45], [-h * 0.7, -w * 0.45], [-h * 0.7, w * 0.45], [-n, w * 0.45], [0, w]]); p.closed = true; return p; }
-    case 'flower': { const g = new P.Group(); const pr = size * 0.35, ps = size * 0.2; for (let i = 0; i < 6; i++) { const a = (Math.PI * 2 / 6) * i; g.addChild(new P.Path.Circle([Math.cos(a) * pr, Math.sin(a) * pr], ps)); } g.addChild(new P.Path.Circle([0, 0], size * 0.125)); return g; }
-    case 'flake': { const g = new P.Group(); const arm = size * 0.47, bl = arm * 0.35, bp = arm * 0.55; for (let i = 0; i < 6; i++) { const a = (Math.PI / 3) * i, ax = Math.cos(a), ay = Math.sin(a); g.addChild(new P.Path.Line([0, 0], [ax * arm, ay * arm])); const bx = ax * bp, by = ay * bp, pp = a + Math.PI / 2; g.addChild(new P.Path.Line([bx, by], [bx + Math.cos(pp) * bl, by + Math.sin(pp) * bl])); g.addChild(new P.Path.Line([bx, by], [bx - Math.cos(pp) * bl, by - Math.sin(pp) * bl])); } return g; }
-    case 'spark': { const lo = size * 0.5, nw = size * 0.12; const p = new P.Path([[0, -lo], [nw, 0], [0, lo], [-nw, 0]]); p.closed = true; return p; }
-    case 'flash': { const h = size * 0.5, w = size * 0.4; const p = new P.Path([[w * 0.4, -h], [-w * 0.1, -h * 0.1], [w * 0.2, -h * 0.1], [-w * 0.4, h], [w * 0.1, h * 0.1], [-w * 0.2, h * 0.1]]); p.closed = true; return p; }
-    case 'clips': { const bl = size * 0.5, bw = size * 0.22, rr = bw / 2; return new P.Group([new P.Path.Rectangle({ point: [-bw / 2, -bl / 2], size: [bw, bl], radius: rr }), new P.Path.Rectangle({ point: [-bl / 2, -bw / 2], size: [bl, bw], radius: rr })]); }
-    case 'checker': { const h = size / 2; return new P.Group([new P.Path.Rectangle({ point: [-h / 2, -h / 2], size: [h, h] }), new P.Path.Rectangle({ point: [0, 0], size: [h, h] })]); }
-    case 'quadCircle': { const off = size * 0.27, ds = size * 0.16; const g = new P.Group(); for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) g.addChild(new P.Path.Circle([sx * off, sy * off], ds)); return g; }
-    case 'threeDots': { const r2 = size * 0.35, ds = size * 0.14; const g = new P.Group(); g.addChild(new P.Path.Circle([0, -r2], ds)); g.addChild(new P.Path.Circle([-r2 * 0.866, r2 * 0.5], ds)); g.addChild(new P.Path.Circle([r2 * 0.866, r2 * 0.5], ds)); return g; }
-    case 'pinholeIndex': return new P.Path.Circle([0, 0], size * 0.075);
-    case 'custom': if (customItem) { const it = customItem.clone(); it.fitBounds(new P.Rectangle(-r, -r, size, size)); return it; } return new P.Path.Circle([0, 0], r);
-    default: return new P.Path.Circle([0, 0], r);
+function paletteLerp(arr, t) {
+  if (!arr.length) return '#000000';
+  if (arr.length === 1) return arr[0][0];
+  t = constrain(t, 0, 1);
+  for (let i = 0; i < arr.length - 1; i++) {
+    const [c0, s0] = arr[i], [c1, s1] = arr[i + 1];
+    if (t >= s0 && t <= s1) return interpHex(c0, c1, (t - s0) / max(1e-6, s1 - s0));
   }
+  return arr[arr.length - 1][0];
 }
-const LINE_SHAPES = new Set(['flake']);
-
-// ---- Angle field (multi-octave noise + branch + swirl + motion) ----
-function computeAngle(col, row, tnx, tny, dist, time) {
-  let sx = tnx, sy = tny;
-  if (params.symmetry === 'mirrored') { sx = Math.abs(tnx); sy = Math.abs(tny); }
-  const radial = Math.atan2(sy, sx);
-  let acc = 0, freq = params.freqBase, amp = params.freqAmplify;
-  for (let i = 0; i < params.freqLayers; i++) {
-    const nx = (sx * params.gridMapX + col * 0.1) * freq + params.seed * 13.7;
-    const ny = (sy * params.gridMapY + row * 0.1) * freq + params.seed * 7.31;
-    acc += noise2D(nx, ny) * amp; freq *= 2; amp *= 0.5;
+// Build palette.temp: active colors cycled to freq.layers length, seed-shuffled.
+function populatePalette(p) {
+  p.randomSeed(seed.value);
+  const active = palette.array.filter((_, i) => palette.use[i]);
+  if (!active.length) active.push('#000000');
+  let temp = [];
+  for (let i = 0; i < params.freq.layers; i++) temp.push(active[i % active.length]);
+  p.shuffle(temp, true);
+  if (params.color.type === 'transition') {
+    temp = temp.map((c, i) => [c, i / max(1, params.freq.layers - 1)]);
   }
-  acc = params.freqMode === 'cos' ? Math.cos(acc * Math.PI) : Math.sin(acc * Math.PI);
-  acc *= applyEasing(1 - dist, params.freqEasing);
-  let branch = 0;
-  if (params.branchAmount > 0.01) {
-    const lx = (sx + Math.cos(radial + acc) * params.branchAmount * 0.5) * freq * 0.5 + params.seed * 5.1;
-    const ly = (sy + Math.sin(radial + acc) * params.branchAmount * 0.5) * freq * 0.5 + params.seed * 9.3;
-    branch = noise2D(lx, ly) * params.freqAmplify * params.branchAmount * 0.3;
-  }
-  let swirl = 0;
-  if (params.swirlMode !== 'none') {
-    const sd = Math.max(0, dist - params.swirlBase);
-    const base = params.swirlMode === 'wave' ? Math.sin(dist * Math.PI * 4) : 1;
-    swirl = sd * params.swirlFreq * Math.PI * base * (1 + params.swirlAmplify);
-  }
-  let timeOff = 0;
-  if (params.motionType === 'noiseLoop') {
-    const t = params.motionAmplify / 100;
-    timeOff = noise2D(col * 0.03 + time * t * 3, row * 0.03) * Math.PI;
-  }
-  return radial + (acc + branch) * Math.PI + swirl + timeOff;
+  palette.temp = temp;
 }
 
-function maskAlphaAt(cx, cy) {
-  if (params.maskType === 'none') return 1;
-  const nx = (cx / CW) * 2 - 1, ny = (cy / CH) * 2 - 1;
-  const r = Math.sqrt(nx * nx + ny * ny), theta = Math.atan2(ny, nx);
-  const petal = 0.5 + 0.5 * Math.cos(params.maskBranches * theta);
-  const outerR = params.maskOuter * Math.pow(petal, Math.max(0.1, params.maskRound + 1));
-  if (r > outerR || r < params.maskInner) return 0;
-  const e = 0.05;
-  return Math.min(Math.min(1, (outerR - r) / e), Math.min(1, (r - params.maskInner) / e));
+/////////////////////////////////////////////////////////////////////////////
+// Noise generator (alea-seeded simplex 4D)
+/////////////////////////////////////////////////////////////////////////////
+let noise4D = createNoise4D(alea(seed.value));
+function reseedNoise() { noise4D = createNoise4D(alea(seed.value)); }
+
+/////////////////////////////////////////////////////////////////////////////
+// Per-point precompute (port of generateFrameData): everything that doesn't
+// change across animation frames. `frame` then only advances the noise sample.
+/////////////////////////////////////////////////////////////////////////////
+let frameData = {};
+let GW = 480, GH = 480; // render-space dimensions (the ratio resolution)
+
+function maxTileDistance(col, row, xSize, ySize, xc, yc) {
+  const x0 = col * xSize, x1 = (col + 1) * xSize, y0 = row * ySize, y1 = (row + 1) * ySize;
+  return max(dist(xc, yc, x0, y0), dist(xc, yc, x1, y0), dist(xc, yc, x1, y1), dist(xc, yc, x0, y1));
+}
+function generatePoints(p, width, height) {
+  p.randomSeed(seed.value);
+  const gx = params.grid.x, gy = params.grid.y;
+  const cols = floor(width / gx), rows = floor(height / gy);
+  const pts = [];
+  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) pts.push([i * gx, j * gy]);
+  for (let i = pts.length - 1; i > 0; i--) { const j = floor(p.random(i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+  return pts.slice(0, params.count.value);
+}
+function canvasOffset(points, width, height) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of points) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
+  return { x: width / 2 - (minX + maxX) / 2, y: height / 2 - (minY + maxY) / 2 };
+}
+function seedGrid(p, cols, rows, randomAmount = 0, maxValue = 5) {
+  const grid = [];
+  const cx = (cols - 1) / 2, cy = (rows - 1) / 2;
+  const maxDist = max(sqrt(cx * cx + cy * cy), 0.0001);
+  for (let i = 0; i < cols; i++) { grid[i] = []; for (let j = 0; j < rows; j++) {
+    const dx = i - cx, dy = j - cy; const norm = sqrt(dx * dx + dy * dy) / maxDist;
+    grid[i][j] = norm * maxValue + p.random(-randomAmount, randomAmount);
+  } }
+  const ci = floor(cols / 2), cj = floor(rows / 2);
+  if (cols >= 2 && rows >= 2 && cols % 2 === 0 && rows % 2 === 0) {
+    grid[ci][cj] = 0; grid[ci - 1][cj] = 0; grid[ci][cj - 1] = 0; grid[ci - 1][cj - 1] = 0;
+  } else grid[ci][cj] = 0;
+  return grid;
 }
 
-function maskLuminance(nx, ny) {
-  if (!maskData) return 0.5;
-  const px = Math.min(maskW - 1, Math.max(0, Math.floor(nx * maskW)));
-  const py = Math.min(maskH - 1, Math.max(0, Math.floor(ny * maskH)));
-  const i = (py * maskW + px) * 4;
-  return (maskData[i] * 0.299 + maskData[i + 1] * 0.587 + maskData[i + 2] * 0.114) / 255;
+function generateFrameData(p) {
+  const fd = {};
+  fd.translate = { x: GW * (1 - cnv.scale) * 0.5, y: GH * (1 - cnv.scale) * 0.5 };
+  fd.colorRatio = params.color.mixed;
+  fd.colorBlend = params.color.blend;
+  fd.canvasScale = cnv.scale;
+  fd.sizeScale = params.scale.value;
+  fd.sizePower = params.scale.power;
+  fd.strokeWidth = params.stroke.width;
+  fd.strokeScale = params.stroke.scale ? 1 : 0;
+  fd.strokeControl = params.stroke.scale ? 0 : 1;
+  fd.motionMode = params.motion.mode;
+  const motionMax = params.freq.base * 0.2 + 0.01;
+  fd.motionAmp = map(params.motion.amp, -100, 100, -motionMax, motionMax) * rec.length.value;
+
+  const data = generatePoints(p, GW, GH);
+  const gridSeed = seedGrid(p, pattern.cells.x, pattern.cells.y, pattern.seed.random);
+  fd.offset = canvasOffset(data, GW, GH);
+  fd.count = data.length;
+  fd.x = []; fd.y = []; fd.seed = []; fd.noise = []; fd.freq = []; fd.scaleEase = []; fd.rotate = []; fd.randomColor = [];
+  fd.color = []; fd.scale = []; fd.strokeSize = [];
+
+  p.randomSeed(seed.value);
+
+  for (let i = 0; i < fd.count; i++) {
+    const x = data[i][0], y = data[i][1];
+    const xOffset = fd.offset.x / pattern.cells.x, yOffset = fd.offset.y / pattern.cells.y;
+    const xSize = GW / pattern.cells.x, ySize = GH / pattern.cells.y;
+    const col = floor(x / xSize), row = floor(y / ySize);
+    const xShift = (col + 0.5) * xSize - GW / 2, yShift = (row + 0.5) * ySize - GH / 2;
+    const xCenter = ((col * 2 + 1) * xSize) / 2 - xOffset, yCenter = ((row * 2 + 1) * ySize) / 2 - yOffset;
+
+    const xCenterShift = xCenter - xShift * pattern.offset.x, yCenterShift = yCenter - yShift * pattern.offset.y;
+    const vxShift = x - xCenterShift, vyShift = y - yCenterShift;
+    const tileCenterShift = maxTileDistance(col, row, xSize, ySize, xCenterShift, yCenterShift);
+    let centerDistance = sqrt(vxShift * vxShift + vyShift * vyShift);
+    const scaleDistance = centerDistance / tileCenterShift;
+    const freqDistance = centerDistance / tileCenterShift;
+    const centerDirection = atan2(vxShift, vyShift);
+    const centerAngle = atan2(xCenterShift - x, yCenterShift - y);
+
+    const maskDistance = centerDistance;
+    const maskMax = tileCenterShift * max(0.05, mask.margin.max);
+    const maskMin = tileCenterShift * min(0.95, mask.margin.min);
+
+    const shapeRotate = map(params.rotate.shape, -1, 1, -PI, PI);
+    const shapeRotateDirection = centerAngle * map(params.rotate.mult, -1, 1, -TWO_PI, TWO_PI);
+    const patternRotate = map(pattern.rotate, -1, 1, -PI, PI);
+
+    let scaleValue = 1, freqEase = 1;
+    fd.seed.push(pattern.seed.value * (gridSeed[col]?.[row] ?? 0));
+
+    // random color selector (per point)
+    let randomColor = p.random();
+    if (params.color.style === 'fill') randomColor = 2;
+    else if (params.color.style === 'stroke') randomColor = -1;
+
+    // swirl
+    let swirlValue = 0;
+    const swirlCenter = tileCenterShift / 2;
+    const baseSwirl = map(params.swirl.base, 0, 1, 0, 0.05);
+    const swirlFreq = map(EASE['Expo Out'](params.swirl.freq), 0, 1, swirlCenter, 1);
+    const swirlAmp = params.swirl.amp * HALF_PI;
+    if (params.swirl.mode === 'rotary') {
+      swirlValue = Math.round(sin(HALF_PI + centerDistance / swirlFreq) * cos(centerDistance / swirlFreq)) * swirlAmp;
+    } else if (params.swirl.mode === 'wave') {
+      swirlValue = sin(cos(centerDistance / swirlFreq)) * swirlAmp;
+    }
+    swirlValue += centerDistance * baseSwirl;
+
+    // branch (radial symmetry)
+    const branchAmount = max(0.01, params.branch.amount);
+    const branchAngle = params.branch.angle;
+    const centerDirectionAngled = centerDirection + swirlValue + patternRotate;
+    const nearestBranch = (Math.round((centerDirectionAngled * branchAmount) / TWO_PI) * TWO_PI) / branchAmount;
+    centerDistance *= cos((centerDirectionAngled - nearestBranch) * branchAngle);
+
+    // mask
+    if (mask.mode === 'parametric') {
+      const maskBranch = mask.branch / 2;
+      const distValue = (mask.branchMode === 'apply' ? centerDistance : maskDistance) * abs(cos(maskBranch * centerDirectionAngled));
+      if (distValue < maskMin || distValue > maskMax) scaleValue = 0;
+      if (mask.branchRound && (maskDistance < maskMin || maskDistance > maskMax)) scaleValue = 0;
+    } else if (mask.mode === 'image' && mask.image.lum) {
+      const px = constrain(floor(x), 0, GW - 1), py = constrain(floor(y), 0, GH - 1);
+      scaleValue *= mask.image.lum[py * GW + px];
+      if (scaleValue < 0.05) scaleValue = 0;
+    }
+
+    // scale easing by radius
+    if (params.scale.easeType !== 'none') {
+      let lo = 0, hi = 0; const off = round2(params.scale.easeOffset, 2);
+      if (off < 0) { lo = 1; hi = 1 - abs(params.scale.easeOffset); } else if (off > 0) { lo = 0; hi = params.scale.easeOffset; }
+      let n = (scaleDistance - lo) / (hi - lo); n = n < 0 ? 0 : n > 1 ? 1 : n;
+      scaleValue *= EASE[params.scale.easeType](n);
+    }
+    // freq easing by radius
+    if (params.freq.easeType !== 'none') {
+      let lo = 0, hi = 0; const off = round2(params.freq.easeOffset, 2);
+      if (off < 0) { lo = 1; hi = 1 - abs(params.freq.easeOffset); } else if (off > 0) { lo = 0; hi = params.freq.easeOffset; }
+      let n = (freqDistance - lo) / (hi - lo); n = n < 0 ? 0 : n > 1 ? 1 : n;
+      freqEase = EASE[params.freq.easeType](n);
+    }
+
+    const freqMode = params.freq.mode === 'cos';
+    const freqAmount = params.branch.amountMax - params.branch.amount * 0.5;
+    const freqBase = EASE['Sine In'](params.freq.base);
+    const freqAmp = EASE['Sine In'](params.freq.amp);
+    const branchMirror = params.branch.symmetry !== 'standard';
+    let branchFreq = cos(branchAmount * centerDirectionAngled);
+    branchFreq = branchMirror ? abs(branchFreq) * freqAmp : branchFreq * freqAmp;
+    const freqValue = freqMode ? Math.round(branchFreq * freqAmount) / freqAmount : branchFreq;
+    const noiseData = log(max(0.001, centerDistance / freqEase) / TWO_PI) * (freqBase * freqEase);
+
+    fd.x.push(x); fd.y.push(y);
+    fd.noise.push(noiseData); fd.freq.push(freqValue);
+    fd.randomColor.push(randomColor); fd.scaleEase.push(scaleValue);
+    fd.rotate.push(shapeRotate + shapeRotateDirection);
+  }
+  frameData = fd;
 }
 
-// ---- Build the vector scene ----
-function build(time) {
-  const view = paper.view;
-  CW = view.size.width; CH = view.size.height;
-  paper.project.activeLayer.removeChildren();
+/////////////////////////////////////////////////////////////////////////////
+// Render (port of drawForms): stamp every point onto the transparent buffer.
+/////////////////////////////////////////////////////////////////////////////
+function drawForms(p, g) {
+  const fd = frameData; if (!fd.count) return;
+  const ctx = g.drawingContext;
+  ctx.globalCompositeOperation = fd.colorBlend;
+  g.push();
+  g.translate(fd.offset.x, fd.offset.y);
+  g.translate(fd.translate.x, fd.translate.y);
+  g.scale(fd.canvasScale);
 
-  const bg = new paper.Path.Rectangle(view.bounds);
-  bg.fillColor = params.background;
+  const frame = cnv.frame / (rec.length.value * rec.frameRate);
+  let noiseFrame = 0, sinFrame = 0, cosFrame = 0;
+  if (fd.motionMode === 'oneway') noiseFrame = TWO_PI * frame * fd.motionAmp;
+  else if (fd.motionMode === 'loop') noiseFrame = sin(TWO_PI * frame) * fd.motionAmp;
+  else if (fd.motionMode === 'noise') { sinFrame = sin(TWO_PI * frame) * fd.motionAmp; cosFrame = cos(TWO_PI * frame) * fd.motionAmp; }
 
-  const cellsX = params.cellsX, cellsY = params.cellsY;
-  const cellSize = Math.min(CW / cellsX, CH / cellsY);
-  const numCols = Math.ceil(CW / cellSize) + 1, numRows = Math.ceil(CH / cellSize) + 1;
-  const halfX = cellsX * 0.5, halfY = cellsY * 0.5;
-  const colors = paletteColors();
-  const scaleMult = params.motionType === 'scalingLoop' ? 0.5 + 0.5 * Math.sin(time * Math.PI * 2) : 1;
-  const blend = params.blendMode;
-  const influence = params.maskImageInfluence / 100;
+  const nLayers = palette.temp.length || 1;
+  const sp = shape.path;
+  for (let i = 0; i < fd.count; i++) {
+    let s = noise4D(fd.seed[i] + fd.noise[i] - noiseFrame, fd.freq[i], sinFrame, cosFrame);
+    s = (1 + s) * 0.5;
+    const colorIndex = abs(~~(s * nLayers));
+    const fract = 1 / nLayers;
+    const valueInRange = (s - colorIndex * fract) / fract;
+    const scaledValue = 2 * (0.5 - abs(valueInRange - 0.5));
+    let size = pow(scaledValue, fd.sizePower) * fd.sizeScale * fd.scaleEase[i];
+    if (Number.isNaN(size) || size < 0.05) continue;
+    fd.scale[i] = size;
 
-  for (let row = 0; row < numRows; row++) {
-    for (let col = 0; col < numCols; col++) {
-      const xOff = (row % 2 === 1) ? cellSize * params.cellOffsetX * 0.5 : 0;
-      const yOff = (col % 2 === 1) ? cellSize * params.cellOffsetY * 0.5 : 0;
-      const cx = col * cellSize + cellSize * 0.5 + xOff;
-      const cy = row * cellSize + cellSize * 0.5 + yOff;
+    let color;
+    if (params.color.type === 'color') color = params.color.base;
+    else if (params.color.type === 'sequence') color = palette.temp[min(colorIndex, nLayers - 1)];
+    else color = paletteLerp(palette.temp, s);
+    fd.color[i] = color;
 
-      const tc = ((col % cellsX) + cellsX) % cellsX, tr = ((row % cellsY) + cellsY) % cellsY;
-      const tnx = (tc - halfX + 0.5) / halfX, tny = (tr - halfY + 0.5) / halfY;
-      const dist = Math.min(Math.sqrt(tnx * tnx + tny * tny) / Math.SQRT2, 1);
+    g.push();
+    g.translate(fd.x[i], fd.y[i]);
+    g.scale(size);
+    g.rotate(fd.rotate[i]);
+    g.translate(-shape.width, -shape.height);
+    if (fd.randomColor[i] > fd.colorRatio) {
+      ctx.fillStyle = color;
+      ctx.fill(sp, 'evenodd');
+    } else {
+      const sw = fd.strokeWidth / (size * fd.strokeControl + fd.strokeScale);
+      fd.strokeSize[i] = sw;
+      ctx.lineWidth = sw; ctx.strokeStyle = color;
+      ctx.stroke(sp);
+    }
+    g.pop();
+  }
+  g.pop();
+  ctx.globalCompositeOperation = 'source-over';
+}
 
-      let scaledT = applyEasing(1 - dist, params.scalingEase);
-      if (params.scalePower > 0) scaledT = Math.pow(scaledT, params.scalePower + 1);
-      let shapeSize = cellSize * params.shapeScale * scaledT * scaleMult;
-      if (maskData && influence > 0) {
-        const lum = maskLuminance(cx / CW, cy / CH);
-        shapeSize *= (1 - influence) + influence * lum * 2;
-      }
-      if (shapeSize < 0.5) continue;
+/////////////////////////////////////////////////////////////////////////////
+// SVG export — re-derive each stamp's transform from frameData and emit a
+// <path>. (Per-shape canvas blend modes like xor/lighter have no exact SVG
+// equivalent, so a group-level mix-blend-mode is used as an approximation.)
+/////////////////////////////////////////////////////////////////////////////
+const CSS_BLEND = { 'source-over': 'normal', 'xor': 'normal', 'lighter': 'plus-lighter', 'multiply': 'multiply', 'screen': 'screen', 'overlay': 'overlay', 'darken': 'darken', 'lighten': 'lighten', 'color-dodge': 'color-dodge', 'color-burn': 'color-burn', 'hard-light': 'hard-light', 'soft-light': 'soft-light', 'exclusion': 'exclusion', 'difference': 'difference' };
 
-      const alpha = maskAlphaAt(cx, cy);
-      if (alpha < 0.01) continue;
+function renderSVG() {
+  const fd = frameData; if (!fd.count) return '';
+  const nLayers = palette.temp.length || 1;
+  const frame = cnv.frame / (rec.length.value * rec.frameRate);
+  let noiseFrame = 0, sinFrame = 0, cosFrame = 0;
+  if (fd.motionMode === 'oneway') noiseFrame = TWO_PI * frame * fd.motionAmp;
+  else if (fd.motionMode === 'loop') noiseFrame = sin(TWO_PI * frame) * fd.motionAmp;
+  else if (fd.motionMode === 'noise') { sinFrame = sin(TWO_PI * frame) * fd.motionAmp; cosFrame = cos(TWO_PI * frame) * fd.motionAmp; }
 
-      const fieldAngle = computeAngle(col, row, tnx, tny, dist, time);
-      const rotDeg = (params.baseRotation + params.cellRotation) + fieldAngle * params.angleMult * (180 / Math.PI);
-      const color = getFillColor(dist, params.colorMode, colors);
-
-      const item = makeShape(params.shapeType, shapeSize);
-      item.position = new paper.Point(cx, cy);
-      item.rotate(rotDeg);
-      if (LINE_SHAPES.has(params.shapeType)) {
-        item.strokeColor = color; item.strokeWidth = Math.max(1, shapeSize * 0.06);
-      } else {
-        if (params.renderStyle === 'fill' || params.renderStyle === 'mixed') item.fillColor = color;
-        if (params.renderStyle === 'stroke' || params.renderStyle === 'mixed') { item.strokeColor = color; item.strokeWidth = 1; }
-      }
-      item.opacity = alpha;
-      if (blend !== 'normal') item.blendMode = blend;
+  const parts = [];
+  for (let i = 0; i < fd.count; i++) {
+    let s = noise4D(fd.seed[i] + fd.noise[i] - noiseFrame, fd.freq[i], sinFrame, cosFrame);
+    s = (1 + s) * 0.5;
+    const colorIndex = abs(~~(s * nLayers));
+    const fract = 1 / nLayers;
+    const valueInRange = (s - colorIndex * fract) / fract;
+    const scaledValue = 2 * (0.5 - abs(valueInRange - 0.5));
+    const size = pow(scaledValue, fd.sizePower) * fd.sizeScale * fd.scaleEase[i];
+    if (Number.isNaN(size) || size < 0.05) continue;
+    let color;
+    if (params.color.type === 'color') color = params.color.base;
+    else if (params.color.type === 'sequence') color = palette.temp[min(colorIndex, nLayers - 1)];
+    else color = paletteLerp(palette.temp, s);
+    const tf = `translate(${round2(fd.x[i], 2)} ${round2(fd.y[i], 2)}) scale(${round2(size, 4)}) rotate(${round2(fd.rotate[i] * 180 / PI, 2)}) translate(${-shape.width} ${-shape.height})`;
+    if (fd.randomColor[i] > fd.colorRatio) {
+      parts.push(`<path d="${shape.d}" transform="${tf}" fill="${color}" fill-rule="evenodd"/>`);
+    } else {
+      const sw = fd.strokeWidth / (size * fd.strokeControl + fd.strokeScale);
+      parts.push(`<path d="${shape.d}" transform="${tf}" fill="none" stroke="${color}" stroke-width="${round2(sw, 4)}"/>`);
     }
   }
+  const gx = fd.offset.x + fd.translate.x, gy = fd.offset.y + fd.translate.y;
+  const bg = cnv.bg.mode === 'custom' ? `<rect width="${GW}" height="${GH}" fill="${cnv.bg.custom}"/>` : '';
+  const blendCss = CSS_BLEND[fd.colorBlend] || 'normal';
+  const blend = blendCss !== 'normal' ? ` style="mix-blend-mode:${blendCss}"` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${GW}" height="${GH}" viewBox="0 0 ${GW} ${GH}">${bg}<g transform="translate(${round2(gx, 2)} ${round2(gy, 2)}) scale(${round2(fd.canvasScale, 4)})"${blend}>${parts.join('')}</g></svg>`;
 }
 
-// ---- UI ----
-const tool = createTool({ name: 'FLAKE', version: '0.1' });
-const canvas = tool.mountCanvas();
-paper.setup(canvas);
-function fitView() { paper.view.viewSize = new paper.Size(window.innerWidth, window.innerHeight); }
-window.addEventListener('resize', () => { fitView(); dirty = true; });
-fitView();
+/////////////////////////////////////////////////////////////////////////////
+// p5 sketch (render-space buffer composited onto a fit-to-viewport canvas)
+/////////////////////////////////////////////////////////////////////////////
+const tool = createTool({ name: 'FLAKE', version: '0.2' });
+let P = null, gForm = null, displayCanvas = null;
+let needsData = true, dirty = true;
 
-const main = tool.pages.main;
-const fPattern = main.addFolder({ title: 'Pattern' });
-fPattern.addBinding(params, 'cellsX', { label: 'cells X', min: 2, max: 40, step: 1 });
-fPattern.addBinding(params, 'cellsY', { label: 'cells Y', min: 2, max: 40, step: 1 });
-fPattern.addBinding(params, 'cellOffsetX', { label: 'offset X', min: 0, max: 1, step: 0.05 });
-fPattern.addBinding(params, 'cellOffsetY', { label: 'offset Y', min: 0, max: 1, step: 0.05 });
-fPattern.addBinding(params, 'cellRotation', { label: 'cell rot', min: 0, max: 360, step: 1 });
-fPattern.addBinding(params, 'gridMapX', { label: 'grid map X', min: 0.5, max: 20, step: 0.5 });
-fPattern.addBinding(params, 'gridMapY', { label: 'grid map Y', min: 0.5, max: 20, step: 0.5 });
-fPattern.addBinding(params, 'symmetry', { options: { Standard: 'standard', Mirrored: 'mirrored' } });
-fPattern.addBinding(params, 'seed', { min: 0, max: 100, step: 1 });
-
-const fShape = main.addFolder({ title: 'Shape' });
-fShape.addBinding(params, 'shapeType', { label: 'shape', options: { Circle: 'circle', Oval: 'oval', Square: 'square', Triangle: 'triangle', Star: 'star', Cross: 'cross', Heart: 'heart', Arrow: 'arrow', Flower: 'flower', Flake: 'flake', Spark: 'spark', Flash: 'flash', Clips: 'clips', Checker: 'checker', 'Quad Circle': 'quadCircle', 'Three Dots': 'threeDots', Pinhole: 'pinholeIndex', Custom: 'custom' } });
-fShape.addBinding(params, 'shapeScale', { label: 'scale', min: 0.05, max: 2, step: 0.05 });
-fShape.addBinding(params, 'scalePower', { label: 'scale pow', min: 0, max: 3, step: 0.1 });
-fShape.addBinding(params, 'scalingEase', { label: 'scale ease', options: EASE_OPTS });
-fShape.addBinding(params, 'baseRotation', { label: 'base rot', min: 0, max: 360, step: 1 });
-fShape.addBinding(params, 'angleMult', { label: 'angle mult', min: 0, max: 4, step: 0.1 });
-fShape.addBinding(params, 'renderStyle', { label: 'render', options: { Fill: 'fill', Stroke: 'stroke', Mixed: 'mixed' } });
-
-const fNoise = main.addFolder({ title: 'Noise', expanded: false });
-fNoise.addBinding(params, 'freqLayers', { label: 'layers', min: 1, max: 8, step: 1 });
-fNoise.addBinding(params, 'freqBase', { label: 'base freq', min: 0.01, max: 0.5, step: 0.01 });
-fNoise.addBinding(params, 'freqAmplify', { label: 'amplify', min: 0.1, max: 3, step: 0.1 });
-fNoise.addBinding(params, 'freqMode', { label: 'mode', options: { Cos: 'cos', Sin: 'sin' } });
-fNoise.addBinding(params, 'branchAmount', { label: 'branch', min: 0, max: 12, step: 0.1 });
-fNoise.addBinding(params, 'freqEasing', { label: 'easing', options: EASE_OPTS });
-
-const fSwirl = main.addFolder({ title: 'Swirl', expanded: false });
-fSwirl.addBinding(params, 'swirlMode', { label: 'mode', options: { Off: 'none', Rotary: 'rotary', Wave: 'wave' } });
-fSwirl.addBinding(params, 'swirlFreq', { label: 'freq', min: 0.1, max: 5, step: 0.1 });
-fSwirl.addBinding(params, 'swirlAmplify', { label: 'amplify', min: 0, max: 5, step: 0.1 });
-fSwirl.addBinding(params, 'swirlBase', { label: 'base', min: 0, max: 1, step: 0.05 });
-
-const fMask = main.addFolder({ title: 'Mask', expanded: false });
-fMask.addBinding(params, 'maskType', { label: 'mode', options: { Off: 'none', Parametric: 'parametric' } });
-fMask.addBinding(params, 'maskBranches', { label: 'branches', min: 1, max: 12, step: 1 });
-fMask.addBinding(params, 'maskRound', { label: 'round', min: 0, max: 5, step: 0.1 });
-fMask.addBinding(params, 'maskInner', { label: 'inner', min: 0, max: 0.5, step: 0.01 });
-fMask.addBinding(params, 'maskOuter', { label: 'outer', min: 0.3, max: 1.5, step: 0.01 });
-fMask.addBinding(params, 'maskImageInfluence', { label: 'img mask', min: 0, max: 100, step: 1 });
-
-const fMotion = main.addFolder({ title: 'Motion', expanded: false });
-fMotion.addBinding(params, 'motionType', { label: 'mode', options: { Off: 'none', Noise: 'noiseLoop', Scale: 'scalingLoop' } });
-fMotion.addBinding(params, 'motionSpeed', { label: 'speed', min: 0.1, max: 3, step: 0.1 });
-fMotion.addBinding(params, 'motionAmplify', { label: 'amplify', min: 0, max: 100, step: 1 });
-
-const fColor = main.addFolder({ title: 'Color' });
-fColor.addBinding(params, 'colorMode', { label: 'mode', options: { Solid: 'solidColor', Sequence: 'paletteSequence', Transition: 'paletteTransition' } });
-fColor.addBinding(params, 'paletteCount', { label: 'colors', min: 1, max: 5, step: 1 });
-fColor.addBinding(params, 'c0', { label: 'color 1', view: 'color' });
-fColor.addBinding(params, 'c1', { label: 'color 2', view: 'color' });
-fColor.addBinding(params, 'c2', { label: 'color 3', view: 'color' });
-fColor.addBinding(params, 'c3', { label: 'color 4', view: 'color' });
-fColor.addBinding(params, 'c4', { label: 'color 5', view: 'color' });
-fColor.addBinding(params, 'blendMode', { label: 'blend', options: { Normal: 'normal', Multiply: 'multiply', Screen: 'screen', Overlay: 'overlay', Darken: 'darken', Lighten: 'lighten', 'Color Dodge': 'color-dodge', 'Color Burn': 'color-burn', 'Hard Light': 'hard-light', 'Soft Light': 'soft-light', Difference: 'difference', Exclusion: 'exclusion', Add: 'add' } });
-fColor.addBinding(params, 'background', { view: 'color' });
-
-attachExport(tool.pages.export, { getCanvas: tool.getCanvas, getSVG: () => paper.project.exportSVG({ asString: true }), name: 'flake' });
-
-// ---- Presets (original content) ----
-const presets = {
-  'Snow Lattice': { cellsX: 12, cellsY: 12, shapeType: 'flake', shapeScale: 0.8, scalingEase: 'sineOut', freqLayers: 4, freqBase: 0.07, freqAmplify: 0.5, freqMode: 'cos', branchAmount: 2, swirlMode: 'none', maskType: 'none', motionType: 'none', colorMode: 'paletteTransition', paletteCount: 3, c0: '#7ad7f0', c1: '#ffffff', c2: '#b8c6db', blendMode: 'multiply', background: '#0a0e17' },
-  'Bloom Grid': { cellsX: 10, cellsY: 10, shapeType: 'flower', shapeScale: 0.9, scalePower: 0.6, scalingEase: 'quadOut', freqLayers: 3, freqBase: 0.05, freqAmplify: 0.8, branchAmount: 1, swirlMode: 'rotary', swirlFreq: 1.4, swirlAmplify: 0.6, maskType: 'parametric', maskBranches: 6, maskOuter: 1.0, motionType: 'noiseLoop', motionSpeed: 0.4, motionAmplify: 30, colorMode: 'paletteTransition', paletteCount: 4, c0: '#ff7675', c1: '#fd79a8', c2: '#fdcb6e', c3: '#ffffff', blendMode: 'multiply', background: '#ffffff' },
-  Vortex: { cellsX: 16, cellsY: 16, shapeType: 'spark', shapeScale: 1.0, scalingEase: 'cubicInOut', freqLayers: 5, freqBase: 0.09, freqAmplify: 1.0, freqMode: 'sin', branchAmount: 0.5, swirlMode: 'wave', swirlFreq: 2.2, swirlAmplify: 1.5, maskType: 'none', motionType: 'noiseLoop', motionSpeed: 0.6, motionAmplify: 50, colorMode: 'paletteTransition', paletteCount: 3, c0: '#6c5ce7', c1: '#00cec9', c2: '#0a0e17', blendMode: 'screen', background: '#05060a' },
-  'Halftone Bloom': { cellsX: 20, cellsY: 20, shapeType: 'circle', shapeScale: 0.7, scalePower: 1.2, scalingEase: 'sineInOut', freqLayers: 2, freqBase: 0.05, branchAmount: 0, swirlMode: 'none', maskType: 'none', motionType: 'none', colorMode: 'paletteSequence', paletteCount: 2, c0: '#000000', c1: '#ffffff', blendMode: 'normal', background: '#ffffff' },
-  Mandala: { cellsX: 16, cellsY: 16, shapeType: 'star', shapeScale: 0.85, scalingEase: 'circOut', freqLayers: 4, freqBase: 0.08, branchAmount: 3, swirlMode: 'rotary', swirlFreq: 1.6, swirlAmplify: 0.8, maskType: 'parametric', maskBranches: 8, maskOuter: 1.0, maskRound: 1.2, motionType: 'none', colorMode: 'paletteTransition', paletteCount: 4, c0: '#6c5ce7', c1: '#a29bfe', c2: '#fd79a8', c3: '#ffeaa7', blendMode: 'multiply', background: '#ffffff' },
-  Carbon: { cellsX: 14, cellsY: 14, shapeType: 'cross', shapeScale: 0.6, renderStyle: 'stroke', scalingEase: 'linear', freqLayers: 3, freqMode: 'sin', branchAmount: 1, swirlMode: 'none', colorMode: 'solidColor', paletteCount: 1, c0: '#dfe6e9', blendMode: 'normal', background: '#0b0d12' },
-  'Heart Field': { cellsX: 12, cellsY: 12, shapeType: 'heart', shapeScale: 0.8, scalePower: 0.8, scalingEase: 'quadOut', freqLayers: 3, branchAmount: 0.5, swirlMode: 'wave', swirlFreq: 1.2, maskType: 'parametric', maskBranches: 1, maskRound: 0.4, maskOuter: 1.1, motionType: 'scalingLoop', motionSpeed: 0.5, colorMode: 'paletteTransition', paletteCount: 3, c0: '#ff7675', c1: '#fd79a8', c2: '#ffffff', blendMode: 'multiply', background: '#fff5f6' },
-  'Static Drift': { cellsX: 24, cellsY: 24, shapeType: 'checker', shapeScale: 0.9, scalingEase: 'none', freqLayers: 5, freqBase: 0.12, freqAmplify: 1.2, freqMode: 'sin', branchAmount: 0.2, motionType: 'noiseLoop', motionSpeed: 0.8, motionAmplify: 60, colorMode: 'paletteSequence', paletteCount: 3, c0: '#0a0e17', c1: '#3c6382', c2: '#82ccdd', blendMode: 'screen', background: '#04060a' },
-  'Asterisk Quilt': { cellsX: 18, cellsY: 18, shapeType: 'spark', shapeScale: 1.0, scalingEase: 'sineOut', freqLayers: 4, branchAmount: 1.5, swirlMode: 'rotary', swirlFreq: 0.8, renderStyle: 'mixed', colorMode: 'paletteTransition', paletteCount: 4, c0: '#e17055', c1: '#fdcb6e', c2: '#00b894', c3: '#0984e3', blendMode: 'multiply', background: '#fffaf0' },
-  'Three Dots Wave': { cellsX: 16, cellsY: 10, shapeType: 'threeDots', shapeScale: 0.9, scalingEase: 'sineInOut', freqLayers: 3, freqMode: 'cos', branchAmount: 2, swirlMode: 'wave', swirlFreq: 2, motionType: 'noiseLoop', motionSpeed: 0.4, motionAmplify: 25, colorMode: 'paletteTransition', paletteCount: 3, c0: '#6c5ce7', c1: '#74b9ff', c2: '#ffffff', blendMode: 'multiply', background: '#ffffff' },
-};
-function randomize(p) {
-  const shapes = ['circle', 'square', 'triangle', 'star', 'cross', 'flower', 'flake', 'spark', 'clips', 'threeDots'];
-  const eases = Object.values(EASE_OPTS);
-  p.shapeType = shapes[(Math.random() * shapes.length) | 0];
-  p.cellsX = 6 + (Math.random() * 28 | 0); p.cellsY = 6 + (Math.random() * 28 | 0);
-  p.shapeScale = 0.4 + Math.random() * 1.2; p.scalePower = Math.random() * 2;
-  p.scalingEase = eases[(Math.random() * eases.length) | 0];
-  p.gridMapX = 1 + Math.random() * 12; p.gridMapY = 1 + Math.random() * 12;
-  p.freqLayers = 1 + (Math.random() * 7 | 0); p.freqBase = 0.02 + Math.random() * 0.3; p.freqAmplify = 0.2 + Math.random() * 2;
-  p.freqMode = Math.random() < 0.5 ? 'cos' : 'sin'; p.branchAmount = Math.random() * 6;
-  p.swirlMode = ['none', 'rotary', 'wave'][(Math.random() * 3) | 0]; p.swirlFreq = 0.2 + Math.random() * 4; p.swirlAmplify = Math.random() * 3;
-  p.angleMult = Math.random() * 3; p.seed = (Math.random() * 100) | 0;
+function applyRatio(p) {
+  [GW, GH] = RATIOS[cnv.ratio];
+  if (gForm) gForm.remove();
+  gForm = p.createGraphics(GW, GH);
+  gForm.pixelDensity(2);
+  gForm.noStroke();
+  p.resizeCanvas(GW, GH);
+  fitCanvas();
+  refreshShape();
+  if (mask.image.src) rasterizeMask();
 }
-attachPresets(tool.pages.options, { pane: tool.pane, params, presets, randomize, onApply: () => { dirty = true; } });
+function fitCanvas() {
+  if (!displayCanvas) return;
+  const pad = 48;
+  const availW = window.innerWidth - pad * 2, availH = window.innerHeight - pad * 2;
+  const k = min(availW / GW, availH / GH);
+  displayCanvas.elt.style.width = `${GW * k}px`;
+  displayCanvas.elt.style.height = `${GH * k}px`;
+}
 
-// ---- Drag-drop: SVG -> shape, raster -> mask ----
+tool.startSketch((p) => {
+  p.setup = () => {
+    P = p;
+    tool.canvasHost.style.display = 'flex';
+    tool.canvasHost.style.alignItems = 'center';
+    tool.canvasHost.style.justifyContent = 'center';
+    const c = p.createCanvas(GW, GH);
+    displayCanvas = c;
+    c.elt.style.display = 'block';
+    p.pixelDensity(2);
+    p.frameRate(rec.frameRate);
+    refreshShape();
+    populatePalette(p);
+    applyRatio(p);
+  };
+
+  p.draw = () => {
+    const animating = cnv.animation && params.motion.amp !== 0;
+    if (!animating && !dirty && !needsData) return;
+    if (needsData) { populatePalette(p); generateFrameData(p); needsData = false; }
+
+    p.clear();
+    if (cnv.bg.mode === 'custom') p.background(cnv.bg.custom);
+    gForm.clear();
+    drawForms(p, gForm);
+    p.image(gForm, 0, 0, GW, GH);
+    dirty = false;
+
+    if (animating) cnv.frame = cnv.frame >= rec.length.value * rec.frameRate ? 0 : cnv.frame + 1;
+  };
+
+  p.windowResized = () => fitCanvas();
+});
+
+const markData = () => { needsData = true; dirty = true; };
+const markDirty = () => { dirty = true; };
+
+/////////////////////////////////////////////////////////////////////////////
+// Raster image mask + custom-SVG shape (drag a file onto the canvas)
+/////////////////////////////////////////////////////////////////////////////
+const maskCanvas = document.createElement('canvas');
+const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
+const imageInput = document.createElement('input');
+imageInput.type = 'file'; imageInput.accept = 'image/*'; imageInput.style.display = 'none';
+document.body.appendChild(imageInput);
+imageInput.addEventListener('change', () => {
+  const file = imageInput.files?.[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { const img = new Image(); img.onload = () => { mask.image.src = img; mask.mode = 'image'; rasterizeMask(); tool.pane.refresh(); markData(); }; img.src = reader.result; };
+  reader.readAsDataURL(file);
+});
+function rasterizeMask() {
+  const img = mask.image.src;
+  if (!img) { mask.image.lum = null; return; }
+  maskCanvas.width = GW; maskCanvas.height = GH;
+  maskCtx.fillStyle = '#000'; maskCtx.fillRect(0, 0, GW, GH);
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = max(GW / iw, GH / ih) * mask.image.scale;
+  const w = iw * k, h = ih * k;
+  maskCtx.drawImage(img, (GW - w) / 2, (GH - h) / 2, w, h);
+  const data = maskCtx.getImageData(0, 0, GW, GH).data;
+  const lum = new Float32Array(GW * GH);
+  const c = mask.image.contrast, b = mask.image.brightness;
+  for (let i = 0; i < GW * GH; i++) {
+    let l = (data[i * 4] * 0.299 + data[i * 4 + 1] * 0.587 + data[i * 4 + 2] * 0.114) / 255;
+    l = (l - 0.5) * c + 0.5 + b;
+    if (mask.image.invertLight) l = 1 - l;
+    lum[i] = l < 0 ? 0 : l > 1 ? 1 : l;
+  }
+  mask.image.lum = lum;
+}
+
+let paperReady = false;
+function importCustomSVG(svgText) {
+  const paper = window.paper;
+  if (!paper) { console.warn('Paper.js not loaded — custom SVG import unavailable'); return; }
+  try {
+    if (!paperReady) { paper.setup(document.createElement('canvas')); paperReady = true; }
+    const item = paper.project.importSVG(svgText, { insert: false, expandShapes: true });
+    const cp = new paper.CompoundPath();
+    (function walk(it) {
+      if ((it instanceof paper.Path || it instanceof paper.CompoundPath) && it.pathData) cp.addChild(it.clone());
+      else if (it.children) it.children.forEach(walk);
+    })(item);
+    const bnds = cp.bounds;
+    const mult = min(10 / bnds.width, 10 / bnds.height);
+    cp.translate(new paper.Point(-bnds.x, -bnds.y));
+    cp.scale(mult, new paper.Point(0, 0));
+    shape.customD = cp.pathData;
+    shape.width = (bnds.width * mult) / 2;
+    shape.height = (bnds.height * mult) / 2;
+    shape.type = 'custom';
+    cp.remove(); paper.project.clear();
+    refreshShape(); tool.pane.refresh(); markDirty();
+  } catch (err) { console.error('SVG import failed', err); }
+}
+
 tool.canvasHost.addEventListener('dragover', (e) => e.preventDefault());
 tool.canvasHost.addEventListener('drop', (e) => {
   e.preventDefault();
-  const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
-  const isSvg = /svg/i.test(file.type) || /\.svg$/i.test(file.name);
+  const file = e.dataTransfer?.files?.[0]; if (!file) return;
   const reader = new FileReader();
-  if (isSvg) {
-    reader.onload = () => {
-      try {
-        const it = paper.project.importSVG(reader.result, { insert: false });
-        it.strokeColor = null; it.fillColor = null;
-        customItem = it; params.shapeType = 'custom'; dirty = true; tool.pane.refresh();
-      } catch (err) { console.error('SVG import failed', err); }
-    };
+  if (/svg/i.test(file.type) || /\.svg$/i.test(file.name)) {
+    reader.onload = () => importCustomSVG(reader.result);
     reader.readAsText(file);
   } else if (/^image\//i.test(file.type)) {
     reader.onload = () => {
       const img = new Image();
-      img.onload = () => {
-        maskW = Math.min(img.naturalWidth, 200);
-        maskH = Math.round(maskW * img.naturalHeight / img.naturalWidth) || 150;
-        maskCanvas.width = maskW; maskCanvas.height = maskH;
-        maskCtx.drawImage(img, 0, 0, maskW, maskH);
-        maskData = maskCtx.getImageData(0, 0, maskW, maskH).data;
-        maskImg = img; dirty = true;
-      };
+      img.onload = () => { mask.image.src = img; mask.mode = 'image'; rasterizeMask(); tool.pane.refresh(); markData(); };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   }
 });
 
-// ---- Animate (rebuild every frame only while in motion; else on change) ----
-let dirty = true;
-tool.pane.on('change', () => { dirty = true; });
-let currentTime = 0;
-paper.view.onFrame = (e) => {
-  const moving = params.motionType !== 'none';
-  if (moving) currentTime += params.motionSpeed * Math.min(e.delta, 0.1);
-  if (moving || dirty) { build(currentTime); dirty = false; }
+/////////////////////////////////////////////////////////////////////////////
+// UI
+/////////////////////////////////////////////////////////////////////////////
+const main = tool.pages.main;
+
+const fCanvas = main.addFolder({ title: 'CANVAS' });
+fCanvas.addBinding(cnv, 'ratio', { label: 'Canvas Ratio', options: RATIO_OPTS }).on('change', () => { if (P) applyRatio(P); markData(); });
+fCanvas.addBinding(cnv, 'scale', { label: 'Canvas Scale', min: 0.5, max: 2, step: 0.01 }).on('change', markDirty);
+fCanvas.addBinding(cnv.bg, 'mode', { label: 'Background', options: BG_OPTS }).on('change', markDirty);
+fCanvas.addBinding(cnv.bg, 'custom', { label: 'Canvas Color', view: 'color' }).on('change', markDirty);
+
+const fStyle = main.addFolder({ title: 'STYLE', expanded: false });
+fStyle.addBinding(params.color, 'style', { label: 'Render Style', options: STYLE_OPTS }).on('change', markData);
+fStyle.addBinding(params.color, 'mixed', { label: 'Fill/Stroke Ratio', min: 0, max: 1, step: 0.01 }).on('change', markData);
+fStyle.addBinding(params.stroke, 'width', { label: 'Stroke Width', min: params.stroke.minWidth, max: params.stroke.maxWidth, step: 0.05 }).on('change', markDirty);
+fStyle.addBinding(params.stroke, 'scale', { label: 'Stroke Scale' }).on('change', markDirty);
+fStyle.addBinding(params.color, 'blend', { label: 'Blend Type', options: BLENDS }).on('change', markData);
+fStyle.addBinding(params.color, 'type', { label: 'Color Type', options: COLOR_OPTS }).on('change', markData);
+fStyle.addBinding(params.color, 'base', { label: 'Shape Color', view: 'color' }).on('change', markDirty);
+
+const fPattern = main.addFolder({ title: 'PATTERN', expanded: false });
+fPattern.addBinding(pattern.cells, 'x', { label: 'Cells X', min: 1, max: 16, step: 1 }).on('change', markData);
+fPattern.addBinding(pattern.cells, 'y', { label: 'Cells Y', min: 1, max: 16, step: 1 }).on('change', markData);
+fPattern.addBinding(pattern.offset, 'x', { label: 'Offset X', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fPattern.addBinding(pattern.offset, 'y', { label: 'Offset Y', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fPattern.addBinding(pattern.seed, 'value', { label: 'Pattern Seed', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fPattern.addBinding(pattern.seed, 'random', { label: 'Seed Random', min: 0, max: 5, step: 0.01 }).on('change', markData);
+fPattern.addBinding(pattern, 'rotate', { label: 'Cell Rotation', min: -1, max: 1, step: 0.01 }).on('change', markData);
+
+const fShape = main.addFolder({ title: 'SHAPE' });
+fShape.addBinding(shape, 'type', { label: 'Shape Type', options: SHAPE_OPTS }).on('change', () => { refreshShape(); markDirty(); });
+fShape.addBinding(params.grid, 'x', { label: 'Grid X', min: 1, max: 16, step: 1 }).on('change', markData);
+fShape.addBinding(params.grid, 'y', { label: 'Grid Y', min: 1, max: 16, step: 1 }).on('change', markData);
+fShape.addBinding(params.count, 'value', { label: 'Shape Count', min: params.count.min, max: params.count.max, step: params.count.step }).on('change', markData);
+fShape.addBinding(params.scale, 'value', { label: 'Shape Scale', min: 0.5, max: 10, step: 0.05 }).on('change', markDirty);
+fShape.addBinding(params.scale, 'power', { label: 'Scale Power', min: 0, max: 5, step: 0.05 }).on('change', markDirty);
+fShape.addBinding(params.scale, 'easeType', { label: 'Scaling Ease', options: EASE_OPTS }).on('change', markData);
+fShape.addBinding(params.scale, 'easeOffset', { label: 'Easing Offset', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fShape.addBinding(params.rotate, 'shape', { label: 'Base Rotation', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fShape.addBinding(params.rotate, 'mult', { label: 'Angle Multiplier', min: -3, max: 3, step: 0.01 }).on('change', markData);
+
+const fNoise = main.addFolder({ title: 'NOISE' });
+fNoise.addBinding(params.branch, 'symmetry', { label: 'Symmetry', options: SYMMETRY_OPTS }).on('change', markData);
+fNoise.addBinding(params.branch, 'amount', { label: 'Branch Amount', min: 0, max: params.branch.amountMax, step: 0.1 }).on('change', markData);
+fNoise.addBinding(params.branch, 'angle', { label: 'Branch Angle', min: 0, max: 2, step: 0.01 }).on('change', markData);
+fNoise.addBinding(params.freq, 'easeType', { label: 'Freq Easing', options: EASE_OPTS }).on('change', markData);
+fNoise.addBinding(params.freq, 'easeOffset', { label: 'Easing Offset', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fNoise.addBinding(params.freq, 'mode', { label: 'Freq Mode', options: FREQ_OPTS }).on('change', markData);
+fNoise.addBinding(params.freq, 'layers', { label: 'Freq Layers', min: params.freq.minLayers, max: params.freq.maxLayers, step: 1 }).on('change', markData);
+fNoise.addBinding(params.freq, 'base', { label: 'Freq Base', min: 0.01, max: 1, step: 0.01 }).on('change', markData);
+fNoise.addBinding(params.freq, 'amp', { label: 'Freq Amplify', min: 0.01, max: 1, step: 0.01 }).on('change', markData);
+
+const fSwirl = main.addFolder({ title: 'SWIRL', expanded: false });
+fSwirl.addBinding(params.swirl, 'mode', { label: 'Swirl Mode', options: SWIRL_OPTS }).on('change', markData);
+fSwirl.addBinding(params.swirl, 'base', { label: 'Base Swirl', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fSwirl.addBinding(params.swirl, 'amp', { label: 'Amplify Effect', min: -1, max: 1, step: 0.01 }).on('change', markData);
+fSwirl.addBinding(params.swirl, 'freq', { label: 'Frequency', min: 0.05, max: 1, step: 0.01 }).on('change', markData);
+
+const fMask = main.addFolder({ title: 'MASK', expanded: false });
+fMask.addBinding(mask, 'mode', { label: 'Mask Type', options: MASK_OPTS }).on('change', markData);
+fMask.addBinding(mask, 'branchMode', { label: 'Branch Mode', options: MASK_BRANCH_OPTS }).on('change', markData);
+fMask.addBinding(mask, 'branch', { label: 'Add Branches', min: 0, max: mask.maxBranch, step: 1 }).on('change', markData);
+fMask.addBinding(mask, 'branchRound', { label: 'Round Branches' }).on('change', markData);
+fMask.addBinding(mask.margin, 'min', { label: 'Mask Min', min: 0, max: 1, step: 0.01 }).on('change', markData);
+fMask.addBinding(mask.margin, 'max', { label: 'Mask Max', min: 0, max: 1, step: 0.01 }).on('change', markData);
+fMask.addButton({ title: 'Load Mask Image…' }).on('click', () => imageInput.click());
+fMask.addBinding(mask.image, 'scale', { label: 'Image Scale', min: 0.5, max: 2, step: 0.01 }).on('change', () => { rasterizeMask(); markData(); });
+fMask.addBinding(mask.image, 'brightness', { label: 'Brightness', min: -0.5, max: 0.5, step: 0.01 }).on('change', () => { rasterizeMask(); markData(); });
+fMask.addBinding(mask.image, 'contrast', { label: 'Contrast', min: 0.5, max: 5, step: 0.01 }).on('change', () => { rasterizeMask(); markData(); });
+fMask.addBinding(mask.image, 'invertLight', { label: 'Invert Lights' }).on('change', () => { rasterizeMask(); markData(); });
+
+const fMotion = main.addFolder({ title: 'MOTION', expanded: false });
+fMotion.addBinding(cnv, 'animation', { label: 'Animate' }).on('change', () => { cnv.frame = 0; dirty = true; });
+fMotion.addBinding(params.motion, 'mode', { label: 'Motion Type', options: MOTION_OPTS }).on('change', () => { cnv.frame = 0; markData(); });
+fMotion.addBinding(params.motion, 'amp', { label: 'Amplify Level', min: -100, max: 100, step: 1 }).on('change', () => { cnv.frame = 0; markData(); });
+
+const fSeed = main.addFolder({ title: 'SEED' });
+fSeed.addBinding(seed, 'value', { label: 'Noise Seed', min: 0, max: seed.max, step: 1 }).on('change', () => { reseedNoise(); markData(); });
+fSeed.addButton({ title: 'Random Seed' }).on('click', () => { seed.value = floor(Math.random() * seed.max); reseedNoise(); tool.pane.refresh(); markData(); });
+
+/////////////////////////////////////////////////////////////////////////////
+// Export + Presets
+/////////////////////////////////////////////////////////////////////////////
+attachExport(tool.pages.export, { getCanvas: tool.getCanvas, getSVG: renderSVG, name: 'flake' });
+
+const presets = {
+  'Cobalt Bloom': { seed: 7, cnv: { ratio: '1:1', scale: 0.92, bg: '#070b14' }, params: { count: { value: 8000 }, grid: { x: 2, y: 2 }, scale: { value: 2.8, power: 1.3, easeType: 'none', easeOffset: 0.5 }, color: { mixed: 0.5, style: 'fill', blend: 'screen', type: 'transition', base: '#0055ff' }, branch: { amount: 6, angle: 1, symmetry: 'standard' }, freq: { mode: 'sin', layers: 10, base: 0.55, amp: 0.3, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'none', base: 0, amp: 0.25, freq: 0.25 }, rotate: { mult: -0.17, shape: 0.17 }, motion: { mode: 'noise', amp: 20 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'flake', palette: ['#0a2a6b', '#2f6fed', '#43d9ff', '#bff3ff', '#ffffff'] },
+  'Cobalt Vortex': { seed: 90210, cnv: { ratio: '1:1', scale: 0.95, bg: '#05070f' }, params: { count: { value: 9000 }, grid: { x: 2, y: 2 }, scale: { value: 3, power: 1.2, easeType: 'Cubic Out', easeOffset: 0.6 }, color: { mixed: 0.5, style: 'fill', blend: 'screen', type: 'transition', base: '#0055ff' }, branch: { amount: 5, angle: 1, symmetry: 'standard' }, freq: { mode: 'sin', layers: 10, base: 0.5, amp: 0.35, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'rotary', base: 0.1, amp: 0.5, freq: 0.3 }, rotate: { mult: -0.3, shape: 0.1 }, motion: { mode: 'noise', amp: 30 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'spark', palette: ['#6c5ce7', '#00cec9', '#a29bfe', '#05070f'] },
+  'Quartz Mosaic': { seed: 86776, cnv: { ratio: '1:1', scale: 0.9, bg: '#deedf8' }, params: { count: { value: 8000 }, grid: { x: 5, y: 5 }, scale: { value: 1, power: 1.5, easeType: 'Cubic Out', easeOffset: 0.5 }, stroke: { width: 0.6, scale: true }, color: { mixed: 0.5, style: 'fill', blend: 'xor', type: 'color', base: '#000000' }, branch: { amount: 4, angle: 1, symmetry: 'standard' }, freq: { mode: 'cos', layers: 6, base: 0.5, amp: 0.04, easeType: 'none', easeOffset: -0.27 }, swirl: { mode: 'none', base: 0, amp: -0.5, freq: 0.5 }, rotate: { mult: 0, shape: 0 }, motion: { mode: 'noise', amp: 6 } }, pattern: { cells: { x: 3, y: 3 }, offset: { x: 0.75, y: 0.75 }, seed: { value: -0.83, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'quad', palette: ['#292522', '#4d6160', '#a39081', '#d6a692', '#efd9b4'] },
+  'Petal Mask': { seed: 4242, cnv: { ratio: '1:1', scale: 0.9, bg: '#fff7fa' }, params: { count: { value: 7000 }, grid: { x: 2, y: 2 }, scale: { value: 2.4, power: 1.3, easeType: 'Sine Out', easeOffset: 0.4 }, color: { mixed: 0.5, style: 'fill', blend: 'multiply', type: 'transition', base: '#0055ff' }, branch: { amount: 6, angle: 1, symmetry: 'mirror' }, freq: { mode: 'sin', layers: 8, base: 0.5, amp: 0.3, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'wave', base: 0, amp: 0.3, freq: 0.4 }, rotate: { mult: -0.17, shape: 0.17 }, motion: { mode: 'noise', amp: 20 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'parametric', branch: 6, margin: { min: 0.1, max: 0.85 }, branchMode: 'ignore', branchRound: false }, shape: 'flower', palette: ['#ff7675', '#fd79a8', '#fdcb6e', '#ffffff'] },
+  'Vermillion Vortex': { seed: 555, cnv: { ratio: '1:1', scale: 0.95, bg: '#120604' }, params: { count: { value: 9000 }, grid: { x: 2, y: 2 }, scale: { value: 3, power: 1.2, easeType: 'Cubic Out', easeOffset: 0.6 }, color: { mixed: 0.5, style: 'fill', blend: 'screen', type: 'transition', base: '#ff7a18' }, branch: { amount: 5, angle: 1, symmetry: 'standard' }, freq: { mode: 'sin', layers: 10, base: 0.5, amp: 0.35, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'rotary', base: 0.1, amp: 0.5, freq: 0.3 }, rotate: { mult: -0.3, shape: 0.1 }, motion: { mode: 'noise', amp: 30 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'spark', palette: ['#3a0a02', '#c0341d', '#ff7a18', '#ffd166', '#fff3d6'] },
+  'Monochrome Grid': { seed: 13, cnv: { ratio: '1:1', scale: 0.9, bg: '#ffffff' }, params: { count: { value: 9000 }, grid: { x: 4, y: 4 }, scale: { value: 1.2, power: 1.3, easeType: 'none', easeOffset: 0.5 }, color: { mixed: 0.5, style: 'fill', blend: 'xor', type: 'color', base: '#101010' }, branch: { amount: 4, angle: 1, symmetry: 'standard' }, freq: { mode: 'cos', layers: 6, base: 0.5, amp: 0.06, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'none', base: 0, amp: 0.25, freq: 0.25 }, rotate: { mult: 0, shape: 0 }, motion: { mode: 'noise', amp: 8 } }, pattern: { cells: { x: 2, y: 2 }, offset: { x: 0.5, y: 0.5 }, seed: { value: 0.3, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'square', palette: ['#000000', '#ffffff'] },
+  'Aurora Drift': { seed: 808, cnv: { ratio: '1:1', scale: 0.95, bg: '#04110f' }, params: { count: { value: 9000 }, grid: { x: 2, y: 2 }, scale: { value: 2.8, power: 1.2, easeType: 'Sine Out', easeOffset: 0.5 }, color: { mixed: 0.5, style: 'fill', blend: 'screen', type: 'transition', base: '#3fe0a6' }, branch: { amount: 3, angle: 1, symmetry: 'standard' }, freq: { mode: 'sin', layers: 9, base: 0.5, amp: 0.3, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'wave', base: 0, amp: 0.3, freq: 0.4 }, rotate: { mult: -0.2, shape: 0.12 }, motion: { mode: 'noise', amp: 25 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'circle', palette: ['#02231d', '#0f7a5a', '#3fe0a6', '#bff7e3', '#ffffff'] },
+  'Halftone Rings': { seed: 21, cnv: { ratio: '1:1', scale: 0.9, bg: '#f4f1ea' }, params: { count: { value: 12000 }, grid: { x: 3, y: 3 }, scale: { value: 1.6, power: 1.4, easeType: 'none', easeOffset: 0.5 }, color: { mixed: 0.5, style: 'fill', blend: 'source-over', type: 'sequence', base: '#101010' }, branch: { amount: 0.01, angle: 1, symmetry: 'standard' }, freq: { mode: 'cos', layers: 5, base: 0.6, amp: 0.05, easeType: 'none', easeOffset: 0 }, swirl: { mode: 'none', base: 0, amp: 0.25, freq: 0.25 }, rotate: { mult: 0, shape: 0 }, motion: { mode: 'noise', amp: 0 } }, pattern: { cells: { x: 1, y: 1 }, offset: { x: 0, y: 0 }, seed: { value: 0, random: 0 }, rotate: 0 }, mask: { mode: 'none' }, shape: 'circle', palette: ['#101010', '#5b5b5b', '#a8a8a8', '#f4f1ea'] },
 };
+
+// Restore the live state to defaults in place (preserving object identities the
+// Tweakpane bindings hold), keeping any dropped mask image.
+function resetToDefaults() {
+  deepMerge(params, structuredClone(DEFAULTS.params));
+  deepMerge(pattern, structuredClone(DEFAULTS.pattern));
+  deepMerge(cnv, structuredClone(DEFAULTS.cnv));
+  const img = { src: mask.image.src, lum: mask.image.lum };
+  deepMerge(mask, structuredClone(DEFAULTS.mask));
+  mask.image.src = img.src; mask.image.lum = img.lum;
+  palette.array = [...DEFAULTS.palette.array];
+  palette.use = [...DEFAULTS.palette.use];
+  shape.type = DEFAULTS.shape.type;
+  shape.customD = DEFAULTS.shape.customD;
+}
+
+// Flatten/expand presets onto a clean default slate, then refresh.
+function applyPreset(name) {
+  const pr = presets[name]; if (!pr) return;
+  resetToDefaults();
+  if (pr.seed != null) seed.value = pr.seed;
+  if (pr.cnv) { if (pr.cnv.ratio) cnv.ratio = pr.cnv.ratio; if (pr.cnv.scale != null) cnv.scale = pr.cnv.scale; if (pr.cnv.bg) cnv.bg.custom = pr.cnv.bg; }
+  if (pr.params) deepMerge(params, pr.params);
+  if (pr.pattern) deepMerge(pattern, pr.pattern);
+  if (pr.mask) deepMerge(mask, pr.mask);
+  if (pr.shape) shape.type = pr.shape;
+  if (pr.palette) { palette.array = [...pr.palette]; palette.use = pr.palette.map(() => true); }
+  refreshShape();
+  reseedNoise();
+  if (P) applyRatio(P);
+  tool.pane.refresh();
+  markData();
+}
+function deepMerge(dst, src) {
+  for (const k of Object.keys(src)) {
+    if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k])) { dst[k] = dst[k] || {}; deepMerge(dst[k], src[k]); }
+    else dst[k] = src[k];
+  }
+}
+
+// Minimal preset dropdown on OPTIONS (a faithful, original-named starter set).
+const presetState = { name: 'Cobalt Bloom' };
+const opts = tool.pages.options;
+opts.addBinding(presetState, 'name', { label: 'Preset', options: Object.fromEntries(Object.keys(presets).map((k) => [k, k])) }).on('change', (ev) => applyPreset(ev.value));
+opts.addButton({ title: 'Apply Preset' }).on('click', () => applyPreset(presetState.name));
+opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
+
+window.addEventListener('resize', fitCanvas);
+// Dev hook: drive presets / inspect state from the console while tuning fidelity.
+window.__flake = { applyPreset, renderSVG, rasterizeMask, markData, importCustomSVG, params, cnv, pattern, mask, shape, palette, seed, presets };
+applyPreset('Cobalt Bloom');
