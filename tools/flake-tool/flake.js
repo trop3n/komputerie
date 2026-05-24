@@ -8,9 +8,9 @@
 // public antlii.github.io/flake-tool source. Math runs in a fixed render-space
 // (the ratio resolution) so parameter magnitudes match the reference.
 import { createTool } from '../../js/antlii/shell.js';
-import { attachPresets } from '../../js/antlii/presets.js';
 import { attachExport } from '../../js/antlii/export.js';
-import { createNoise4D } from 'simplex-noise';
+import { seedNoise, noise4D, alea } from '../../js/antlii/noise.js';
+import { buildLayers, toTransitionStops, paletteLerp, attachPaletteControls } from '../../js/antlii/palette.js';
 
 /////////////////////////////////////////////////////////////////////////////
 // Small math helpers (plain JS so the port reads like the reference)
@@ -23,29 +23,6 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const constrain = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const dist = (x0, y0, x1, y1) => Math.hypot(x1 - x0, y1 - y0);
 const round2 = (v, n = 0) => { const f = 10 ** n; return Math.round(v * f) / f; };
-
-// Alea — small seedable PRNG (Baagøe). Feeds the simplex generator so a seed
-// reproduces a pattern exactly, like the reference's alea+simplex pairing.
-function alea(seed) {
-  let s0 = 0, s1 = 0, s2 = 0, c = 1;
-  const mash = (() => { let n = 0xefc8249d; return (data) => {
-    data = String(data);
-    for (let i = 0; i < data.length; i++) {
-      n += data.charCodeAt(i);
-      let h = 0.02519603282416938 * n;
-      n = h >>> 0; h -= n; h *= n; n = h >>> 0; h -= n; n += h * 0x100000000;
-    }
-    return (n >>> 0) * 2.3283064365386963e-10;
-  }; })();
-  s0 = mash(' '); s1 = mash(' '); s2 = mash(' ');
-  s0 -= mash(seed); if (s0 < 0) s0 += 1;
-  s1 -= mash(seed); if (s1 < 0) s1 += 1;
-  s2 -= mash(seed); if (s2 < 0) s2 += 1;
-  return () => {
-    const t = 2091639 * s0 + c * 2.3283064365386963e-10;
-    s0 = s1; s1 = s2; return (s2 = t - (c = t | 0));
-  };
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // Easing (standard Penner set, keyed by label like the reference)
@@ -185,44 +162,19 @@ const rec = { frameRate: 30, length: { value: 10, min: 1, max: 60 } };
 const DEFAULTS = structuredClone({ params, pattern, mask, cnv, palette, shape });
 
 /////////////////////////////////////////////////////////////////////////////
-// Color helpers
+// Palette (shared module): cycle active colors to freq.layers, seed-shuffle,
+// and build gradient stops for transition mode.
 /////////////////////////////////////////////////////////////////////////////
-function interpHex(a, b, t) {
-  const pa = a.replace('#', ''), pb = b.replace('#', '');
-  const r1 = parseInt(pa.slice(0, 2), 16), g1 = parseInt(pa.slice(2, 4), 16), b1 = parseInt(pa.slice(4, 6), 16);
-  const r2 = parseInt(pb.slice(0, 2), 16), g2 = parseInt(pb.slice(2, 4), 16), b2 = parseInt(pb.slice(4, 6), 16);
-  const h = (v) => Math.round(v).toString(16).padStart(2, '0');
-  return `#${h(lerp(r1, r2, t))}${h(lerp(g1, g2, t))}${h(lerp(b1, b2, t))}`;
-}
-function paletteLerp(arr, t) {
-  if (!arr.length) return '#000000';
-  if (arr.length === 1) return arr[0][0];
-  t = constrain(t, 0, 1);
-  for (let i = 0; i < arr.length - 1; i++) {
-    const [c0, s0] = arr[i], [c1, s1] = arr[i + 1];
-    if (t >= s0 && t <= s1) return interpHex(c0, c1, (t - s0) / max(1e-6, s1 - s0));
-  }
-  return arr[arr.length - 1][0];
-}
-// Build palette.temp: active colors cycled to freq.layers length, seed-shuffled.
-function populatePalette(p) {
-  p.randomSeed(seed.value);
+function rebuildPalette() {
   const active = palette.array.filter((_, i) => palette.use[i]);
-  if (!active.length) active.push('#000000');
-  let temp = [];
-  for (let i = 0; i < params.freq.layers; i++) temp.push(active[i % active.length]);
-  p.shuffle(temp, true);
-  if (params.color.type === 'transition') {
-    temp = temp.map((c, i) => [c, i / max(1, params.freq.layers - 1)]);
-  }
-  palette.temp = temp;
+  const temp = buildLayers(active, params.freq.layers, alea(seed.value));
+  palette.temp = params.color.type === 'transition' ? toTransitionStops(temp) : temp;
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Noise generator (alea-seeded simplex 4D)
+// Noise (shared alea-seeded simplex; sampled in 4D so two dims animate the loop)
 /////////////////////////////////////////////////////////////////////////////
-let noise4D = createNoise4D(alea(seed.value));
-function reseedNoise() { noise4D = createNoise4D(alea(seed.value)); }
+function reseedNoise() { seedNoise(seed.value); }
 
 /////////////////////////////////////////////////////////////////////////////
 // Per-point precompute (port of generateFrameData): everything that doesn't
@@ -527,14 +479,14 @@ tool.startSketch((p) => {
     p.pixelDensity(2);
     p.frameRate(rec.frameRate);
     refreshShape();
-    populatePalette(p);
+    rebuildPalette();
     applyRatio(p);
   };
 
   p.draw = () => {
     const animating = cnv.animation && params.motion.amp !== 0;
     if (!animating && !dirty && !needsData) return;
-    if (needsData) { populatePalette(p); generateFrameData(p); needsData = false; }
+    if (needsData) { rebuildPalette(); generateFrameData(p); needsData = false; }
 
     p.clear();
     if (cnv.bg.mode === 'custom') p.background(cnv.bg.custom);
@@ -649,6 +601,7 @@ fStyle.addBinding(params.stroke, 'scale', { label: 'Stroke Scale' }).on('change'
 fStyle.addBinding(params.color, 'blend', { label: 'Blend Type', options: BLENDS }).on('change', markData);
 fStyle.addBinding(params.color, 'type', { label: 'Color Type', options: COLOR_OPTS }).on('change', markData);
 fStyle.addBinding(params.color, 'base', { label: 'Shape Color', view: 'color' }).on('change', markDirty);
+attachPaletteControls(fStyle, { palette, pane: tool.pane, onChange: markData });
 
 const fPattern = main.addFolder({ title: 'PATTERN', expanded: false });
 fPattern.addBinding(pattern.cells, 'x', { label: 'Cells X', min: 1, max: 16, step: 1 }).on('change', markData);
@@ -735,8 +688,8 @@ function resetToDefaults() {
   const img = { src: mask.image.src, lum: mask.image.lum };
   deepMerge(mask, structuredClone(DEFAULTS.mask));
   mask.image.src = img.src; mask.image.lum = img.lum;
-  palette.array = [...DEFAULTS.palette.array];
-  palette.use = [...DEFAULTS.palette.use];
+  DEFAULTS.palette.array.forEach((c, i) => { palette.array[i] = c; });
+  DEFAULTS.palette.use.forEach((u, i) => { palette.use[i] = u; });
   shape.type = DEFAULTS.shape.type;
   shape.customD = DEFAULTS.shape.customD;
 }
@@ -751,7 +704,7 @@ function applyPreset(name) {
   if (pr.pattern) deepMerge(pattern, pr.pattern);
   if (pr.mask) deepMerge(mask, pr.mask);
   if (pr.shape) shape.type = pr.shape;
-  if (pr.palette) { palette.array = [...pr.palette]; palette.use = pr.palette.map(() => true); }
+  if (pr.palette) { for (let i = 0; i < palette.array.length; i++) { palette.array[i] = pr.palette[i % pr.palette.length]; palette.use[i] = true; } }
   refreshShape();
   reseedNoise();
   if (P) applyRatio(P);

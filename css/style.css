@@ -436,6 +436,34 @@ input[type="range"]::-moz-range-thumb {
   z-index: 10;
 }
 
+/* antlii-style theme for the Tweakpane (v4) panel — dark, compact, monospace,
+   matching the live antlii tools while staying cohesive with this site. */
+.antlii-pane {
+  --tp-base-background-color: rgba(18, 18, 20, 0.94);
+  --tp-base-shadow-color: rgba(0, 0, 0, 0.45);
+  --tp-button-background-color: #2a2a2e;
+  --tp-button-background-color-active: #54545e;
+  --tp-button-background-color-focus: #3e3e46;
+  --tp-button-background-color-hover: #34343c;
+  --tp-button-foreground-color: #e0e0e0;
+  --tp-container-background-color: rgba(44, 44, 50, 0.5);
+  --tp-container-background-color-active: rgba(64, 64, 72, 0.6);
+  --tp-container-background-color-focus: rgba(58, 58, 66, 0.6);
+  --tp-container-background-color-hover: rgba(52, 52, 60, 0.6);
+  --tp-container-foreground-color: #c8c8c8;
+  --tp-groove-foreground-color: rgba(255, 255, 255, 0.1);
+  --tp-input-background-color: rgba(0, 0, 0, 0.32);
+  --tp-input-background-color-active: rgba(0, 0, 0, 0.5);
+  --tp-input-background-color-focus: rgba(0, 0, 0, 0.46);
+  --tp-input-background-color-hover: rgba(0, 0, 0, 0.4);
+  --tp-input-foreground-color: #e8e8e8;
+  --tp-label-foreground-color: #9a9aa0;
+  --tp-monitor-background-color: rgba(0, 0, 0, 0.32);
+  --tp-monitor-foreground-color: #b0b0b0;
+}
+.antlii-pane .tp-dfwv { font-family: var(--mono); font-size: 11px; }
+.antlii-pane .tp-rotv_t { letter-spacing: 0.04em; }
+
 .antlii-back {
   position: absolute;
   bottom: 12px;
