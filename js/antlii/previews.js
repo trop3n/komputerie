@@ -22,20 +22,24 @@ const effects = {
     },
   },
   splitx: {
+    // A stamped shape repeated along a diagonal, quad-mirrored into an X of
+    // nested contours with a transition ramp — the SPLITX signature.
     draw(ctx, f) {
-      ctx.fillStyle = '#06070d'; ctx.fillRect(0, 0, W, H);
-      const cx = W / 2, cy = H / 2;
+      ctx.fillStyle = '#0a0a14'; ctx.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2, n = 13;
+      ctx.lineWidth = 1.1;
       for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
-        for (let i = 0; i < 6; i++) {
-          const a = f * 0.02 + i * 0.6, r = 8 + i * 7;
-          ctx.save();
-          ctx.translate(cx + sx * Math.cos(a) * r, cy + sy * Math.sin(a) * r);
-          ctx.rotate(a * sx);
-          ctx.strokeStyle = `hsl(${(210 + i * 18) % 360},70%,62%)`; ctx.lineWidth = 1.2;
-          const s = 4 + i;
-          ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * 0.866, s * 0.5); ctx.lineTo(-s * 0.866, s * 0.5); ctx.closePath(); ctx.stroke();
-          ctx.restore();
+        ctx.save(); ctx.translate(cx, cy); ctx.scale(sx, sy);
+        for (let i = 0; i < n; i++) {
+          const wob = Math.sin(f * 0.03 + i * 0.45), r = 6 + i * 6.2;
+          ctx.strokeStyle = `hsl(${(212 + i * 12 + f * 0.4) % 360},72%,${58 + wob * 6}%)`;
+          ctx.beginPath();
+          ctx.moveTo(r * 1.5, r * 0.15);
+          ctx.lineTo(r * 0.45 + wob * 2, r * 0.45 + wob * 2);
+          ctx.lineTo(r * 0.15, r * 1.5);
+          ctx.stroke();
         }
+        ctx.restore();
       }
     },
   },
