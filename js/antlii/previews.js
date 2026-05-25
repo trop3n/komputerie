@@ -59,15 +59,24 @@ const effects = {
     },
   },
   textr: {
+    // Stacked rows of a repeated letter (TEXTR's kinetic engine): each row's
+    // count forms a back-and-forth diamond, with a per-row sine wave displacing
+    // copies horizontally — the new TEXTR signature.
     draw(ctx, f) {
-      ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
-      const cx = W / 2, cy = H / 2, txt = 'ANTLII', n = 12;
-      ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      for (let i = 0; i < n; i++) {
-        const a = i / n * Math.PI * 2 + f * 0.01;
-        ctx.save(); ctx.translate(cx + Math.cos(a) * 38, cy + Math.sin(a) * 38 * 0.62); ctx.rotate(a + Math.PI / 2);
-        ctx.fillStyle = `hsl(${(i / n * 140 + 200) % 360},70%,65%)`; ctx.fillText(txt[i % txt.length], 0, 0);
-        ctx.restore();
+      ctx.fillStyle = '#101010'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#f5f5f5';
+      ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const letters = 'TEXTR', rows = 11, rh = H / (rows + 1);
+      for (let r = 0; r < rows; r++) {
+        const ch = letters[r % letters.length];
+        const count = 3 + Math.round(Math.abs(Math.sin(r / rows * Math.PI)) * 6); // diamond
+        const y = rh * (r + 1);
+        const phase = (r / rows) * Math.PI * 2;
+        for (let i = 0; i < count; i++) {
+          const t = count > 1 ? i / (count - 1) - 0.5 : 0;
+          const wave = Math.sin(t * Math.PI * 2 + f * 0.04 + phase) * 14;
+          ctx.fillText(ch, W / 2 + t * W * 0.62 + wave, y);
+        }
       }
     },
   },

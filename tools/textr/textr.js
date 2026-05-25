@@ -1,216 +1,703 @@
-// TEXTR — vector typographic art. Text is converted to glyph outlines (via the
-// shared typography module) and duplicated/distributed across the canvas as
-// letters, words, or blocks with transform + color controls. Paper.js rendering
-// with real SVG export and custom-font drag-drop.
+// TEXTR — kinetic typography. A phrase is laid out as a stack of rows (vertical)
+// or a row of columns (horizontal) of repeated words/letters; each row's COUNT of
+// copies follows an order pattern (forward / backward / back-and-forth / random)
+// so the text mass forms shapes (diamonds, waves), and every copy is displaced
+// perpendicular to the layout axis by a sine / double-sine / 4D-noise wave whose
+// phase is driven by the copy index AND the row's position (a travelling wave),
+// with optional scale modulation, collision spacing and infinite scroll. A
+// faithful re-implementation (homage) of antlii's TEXTR engine — behaviour +
+// parameter model studied from the public antlii.github.io/textr-tool source.
+// The reference lays glyphs out with fontkit; here that's reimplemented on
+// opentype.js (our stack's font lib). Live render = p5 2D + `ctx.fill(Path2D)`;
+// SVG export = Paper.js reconstruction of the same arrangement. Original code,
+// preset names and palettes.
 import { createTool } from '../../js/antlii/shell.js';
-import { attachPresets } from '../../js/antlii/presets.js';
 import { attachExport } from '../../js/antlii/export.js';
-import { loadFont, parseFont, textUnits, FONT_OPTIONS } from '../../js/antlii/typography.js';
-import { noise2D } from '../../js/antlii/noise.js';
+import { alea } from '../../js/antlii/noise.js';
+import { createNoise2D, createNoise4D } from '../../js/vendor/simplex/simplex-noise.js';
+import { loadFont, parseFont, FONT_OPTIONS } from '../../js/antlii/typography.js';
 
-const paper = window.paper;
+/////////////////////////////////////////////////////////////////////////////
+// Math + easing (port of ease.js — referenced by name from params)
+/////////////////////////////////////////////////////////////////////////////
+const { sin, cos, abs, floor, ceil, min, max, sqrt, pow, PI } = Math;
+const TWO_PI = PI * 2, HALF_PI = PI / 2;
+const map = (v, a, b, c, d) => c + (d - c) * ((v - a) / (b - a));
+const constrain = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const fract = (v) => v - floor(v);
 
-const params = {
-  text: 'ANTLII',
-  font: 'Space Mono',
-  fontSize: 120,
-  unit: 'letters',
-  layout: 'ring',
-  count: 24,
-  spread: 1,
-  scale: 0.7,
-  scaleVar: 0.2,
-  baseRotation: 0,
-  rotationStep: 0,
-  faceOut: true,
-  render: 'fill',
-  strokeWeight: 1,
-  colorMode: 'transition',
-  paletteCount: 3,
-  c0: '#ffffff', c1: '#6c5ce7', c2: '#00cec9',
-  opacity: 100,
-  background: '#0a0a12',
-  animate: false,
-  animSpeed: 0.5,
+const EASE = {
+  linear: (t) => t,
+  easeInSine: (t) => -cos(t * HALF_PI) + 1,
+  easeOutSine: (t) => sin(t * HALF_PI),
+  easeInOutSine: (t) => -0.5 * (cos(PI * t) - 1),
+  easeInQuad: (t) => t * t,
+  easeOutQuad: (t) => t * (2 - t),
+  easeInOutQuad: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
+  easeInCubic: (t) => t * t * t,
+  easeOutCubic: (t) => { const u = t - 1; return u * u * u + 1; },
+  easeInOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1),
+  easeInExpo: (t) => (t === 0 ? 0 : pow(2, 10 * (t - 1))),
+  easeOutExpo: (t) => (t === 1 ? 1 : -pow(2, -10 * t) + 1),
+  easeInOutExpo: (t) => { if (t === 0 || t === 1) return t; const s = t * 2, s1 = s - 1; return s < 1 ? 0.5 * pow(2, 10 * s1) : 0.5 * (-pow(2, -10 * s1) + 2); },
+  easeInCirc: (t) => -1 * (sqrt(1 - t * t) - 1),
+  easeOutCirc: (t) => { const u = t - 1; return sqrt(1 - u * u); },
+  easeInOutCirc: (t) => { const s = t * 2, s2 = s - 2; return s < 1 ? -0.5 * (sqrt(1 - s * s) - 1) : 0.5 * (sqrt(1 - s2 * s2) + 1); },
+  easeInBack: (t, m = 1.70158) => t * t * ((m + 1) * t - m),
+  easeOutBack: (t, m = 1.70158) => { const s = t - 1; return s * s * ((m + 1) * s + m) + 1; },
+  easeInOutBack: (t, m = 1.70158) => { const s = t * 2, s2 = s - 2, k = m * 1.525; return s < 1 ? 0.5 * s * s * ((k + 1) * s - k) : 0.5 * (s2 * s2 * ((k + 1) * s2 + k) + 2); },
+  easeInElastic: (t, m = 0.7) => { if (t === 0 || t === 1) return t; const s1 = t - 1, p = 1 - m, s = (p / TWO_PI) * Math.asin(1); return -(pow(2, 10 * s1) * sin(((s1 - s) * TWO_PI) / p)); },
+  easeOutElastic: (t, m = 0.7) => { if (t === 0 || t === 1) return t; const p = 1 - m, st = t * 2, s = (p / TWO_PI) * Math.asin(1); return pow(2, -10 * st) * sin(((st - s) * TWO_PI) / p) + 1; },
+  easeInOutElastic: (t, m = 0.65) => { if (t === 0 || t === 1) return t; const p = 1 - m, st = t * 2, s1 = st - 1, s = (p / TWO_PI) * Math.asin(1); return st < 1 ? -0.5 * (pow(2, 10 * s1) * sin(((s1 - s) * TWO_PI) / p)) : pow(2, -10 * s1) * sin(((s1 - s) * TWO_PI) / p) * 0.5 + 1; },
+  easeOutBounce: (t) => { if (t < 1 / 2.75) return 7.5625 * t * t; if (t < 2 / 2.75) { const u = t - 1.5 / 2.75; return 7.5625 * u * u + 0.75; } if (t < 2.5 / 2.75) { const u = t - 2.25 / 2.75; return 7.5625 * u * u + 0.9375; } const u = t - 2.625 / 2.75; return 7.5625 * u * u + 0.984375; },
+  easeInBounce: (t) => 1 - EASE.easeOutBounce(1 - t),
+  easeInOutBounce: (t) => (t < 0.5 ? EASE.easeInBounce(t * 2) * 0.5 : EASE.easeOutBounce(t * 2 - 1) * 0.5 + 0.5),
 };
+const ez = (name, t) => (EASE[name] || EASE.linear)(t);
 
-let font = null;
-let dirty = true;
-let spin = 0;
+/////////////////////////////////////////////////////////////////////////////
+// Option maps
+/////////////////////////////////////////////////////////////////////////////
+const RATIOS = {
+  '2:1': [480, 240], '16:9': [640, 360], '3:2': [480, 320], '4:3': [480, 360],
+  '5:4': [600, 480], '1:1': [480, 480], '4:5': [480, 600], '3:4': [360, 480],
+  '2:3': [320, 480], '9:16': [360, 640], '1:2': [240, 480],
+};
+const RATIO_OPTS = Object.fromEntries(Object.keys(RATIOS).map((k) => [k, k]));
+const BG_OPTS = { 'Color Fill': 'fill', Transparent: 'transparent' };
+const LAYOUT_OPTS = { Vertical: 'vertical', Horizontal: 'horizontal' };
+const TEXT_OPTS = { 'Repeat by Word': 'repeatWord', 'Repeat by Letter': 'repeatLetter', 'Split by Word': 'splitWord', 'Split by Letter': 'splitLetter' };
+const ORDER_OPTS = { None: 'none', Forward: 'forward', Backward: 'backward', 'Back & Forth': 'backforth', Random: 'random' };
+const MOTION_OPTS = { None: 'none', Sinusoid: 'sin', 'Double Sinusoid': 'doublesin', Noise: 'noise' };
+const SCALE_OPTS = { None: 'none', 'Use Position Data': 'pos', Sinusoid: 'sin', 'Double Sinusoid': 'doublesin', Noise: 'noise' };
+const AMP_OPTS = { 'Easing Off': 'uniform', 'From Center': 'center', 'From Edges': 'edge', 'To Side (0→1)': 'side0', 'To Side (1→0)': 'side1' };
+const EASE_OPTS = { Linear: 'linear', 'Sine In': 'easeInSine', 'Sine Out': 'easeOutSine', 'Sine In/Out': 'easeInOutSine', 'Quad In': 'easeInQuad', 'Quad Out': 'easeOutQuad', 'Quad In/Out': 'easeInOutQuad', 'Cubic In': 'easeInCubic', 'Cubic Out': 'easeOutCubic', 'Cubic In/Out': 'easeInOutCubic', 'Expo In': 'easeInExpo', 'Expo Out': 'easeOutExpo', 'Circ In': 'easeInCirc', 'Circ Out': 'easeOutCirc', 'Back In': 'easeInBack', 'Back Out': 'easeOutBack', 'Elastic In': 'easeInElastic', 'Elastic Out': 'easeOutElastic', 'Bounce In': 'easeInBounce', 'Bounce Out': 'easeOutBounce' };
 
-function setFont(name) {
-  loadFont(name).then((f) => { font = f; dirty = true; }).catch((e) => console.error('font load failed', e));
+/////////////////////////////////////////////////////////////////////////////
+// State (faithful defaults; preset names + fonts are original)
+/////////////////////////////////////////////////////////////////////////////
+const cnv = { ratio: '1:1', scale: 1, frame: 0, maxFrames: 900, animation: true, seed: (Math.random() * 1000) | 0, bg: { mode: 'fill', fill: '#000000' } };
+const params = {
+  font: 'Space Mono',
+  phrase: 'ONE',
+  layout: 'vertical',
+  type: 'repeatWord',
+  color: '#FFFFFF',
+  scroll: 0,
+  interval: 4,
+  collision: { use: true, offset: 3 },
+  size: { font: 8, min: 4, max: 72 },
+  margins: { value: 0.9 },
+  items: { value: 20 },
+  count: { order: 'backforth', index: 0, value: 25, scope: { min: 4, max: 16 } },
+  pos: {
+    mode: 'sin', ease: 'linear', seed: (Math.random() * 1000) | 0,
+    amp: { mode: 'uniform', ease: 'linear', value: 50 },
+    phase: { mirror: false, offset: 0 },
+    sin: { x: 1, y: 1.5, cycle: 2 },
+    add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 },
+    noise: { x: 0.2, y: 0.5, speed: 0.5 },
+  },
+  scale: {
+    mode: 'noise', ease: 'linear', seed: (Math.random() * 1000) | 0, start: 1, end: 1,
+    phase: { mirror: false, offset: 0 },
+    sin: { x: 1, y: 1.5, cycle: 2 },
+    add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 },
+    noise: { x: 0.2, y: 0.5, speed: 0.5 },
+  },
+};
+const rec = { frameRate: 60, length: { value: 2 } };
+const DEFAULTS = structuredClone({ cnv, params });
+
+/////////////////////////////////////////////////////////////////////////////
+// Seeded simplex (base = order-random, pos / scale = motion)
+/////////////////////////////////////////////////////////////////////////////
+let nBase, nPos, nScale;
+function seedEvent() {
+  nBase = createNoise2D(alea(cnv.seed));
+  nPos = createNoise4D(alea(params.pos.seed));
+  nScale = createNoise4D(alea(params.scale.seed));
+}
+seedEvent();
+
+/////////////////////////////////////////////////////////////////////////////
+// Glyph layout (opentype.js) → textr.words[] of { word:Path2D, svg, pos, size }
+/////////////////////////////////////////////////////////////////////////////
+const textr = { words: [], width: 0, height: 0, interval: 0 };
+let FONT = null;
+
+function unitMetrics(str) {
+  // path with baseline at y=0, left at x=0 (glyph extends upward = negative y)
+  const otPath = FONT.getPath(str, 0, 0, params.size.font);
+  const svg = otPath.toPathData(3);
+  const bb = otPath.getBoundingBox(); // {x1,y1,x2,y2}; empty → all 0
+  const advance = FONT.getAdvanceWidth(str, params.size.font);
+  const cx = (bb.x1 + bb.x2) / 2;
+  const cy = (bb.y1 + bb.y2) / 2;
+  return { svg, path: new Path2D(svg), advance, bb, cx, cy, height: bb.y2 - bb.y1 };
 }
 
-// ---- Color ----
-function interpolateHex(a, b, t) {
-  const r1 = parseInt(a.slice(1, 3), 16), g1 = parseInt(a.slice(3, 5), 16), b1 = parseInt(a.slice(5, 7), 16);
-  const r2 = parseInt(b.slice(1, 3), 16), g2 = parseInt(b.slice(3, 5), 16), b2 = parseInt(b.slice(5, 7), 16);
-  const h = (v) => Math.round(v).toString(16).padStart(2, '0');
-  return `#${h(r1 + (r2 - r1) * t)}${h(g1 + (g2 - g1) * t)}${h(b1 + (b2 - b1) * t)}`;
-}
-function colorList() { return [params.c0, params.c1, params.c2].slice(0, Math.max(1, params.paletteCount)); }
-function colorAt(i, n) {
-  const cs = colorList();
-  if (params.colorMode === 'solid' || cs.length === 1) return cs[0];
-  const t = n > 1 ? i / (n - 1) : 0;
-  if (params.colorMode === 'sequence') return cs[Math.min(Math.floor(t * cs.length), cs.length - 1)];
-  const tt = t * (cs.length - 1);
-  const k = Math.min(Math.floor(tt), cs.length - 2);
-  return interpolateHex(cs[k], cs[Math.min(k + 1, cs.length - 1)], tt - k);
-}
-
-function layout(i, n, view) {
-  const cx = view.center.x, cy = view.center.y;
-  const minDim = Math.min(view.size.width, view.size.height);
-  switch (params.layout) {
-    case 'row': {
-      const span = minDim * 0.85 * params.spread;
-      return { x: cx + (n > 1 ? (i / (n - 1) - 0.5) * span : 0), y: cy, angle: 0 };
-    }
-    case 'ring': {
-      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-      const R = minDim * 0.35 * params.spread;
-      return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, angle: params.faceOut ? a * 180 / Math.PI + 90 : 0 };
-    }
-    case 'spiral': {
-      const a = i * 2.399963229728653;
-      const R = Math.sqrt(i / Math.max(1, n)) * minDim * 0.45 * params.spread;
-      return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, angle: params.faceOut ? a * 180 / Math.PI : 0 };
-    }
-    default: {
-      const cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
-      const gw = minDim * 0.85 * params.spread, gh = gw * (rows / Math.max(1, cols));
-      const col = i % cols, row = (i / cols) | 0;
-      const x = cx - gw / 2 + (cols > 1 ? col / (cols - 1) : 0.5) * gw;
-      const y = cy - gh / 2 + (rows > 1 ? row / (rows - 1) : 0.5) * gh;
-      return { x, y, angle: 0 };
-    }
-  }
-}
-
-function build() {
-  if (!font) return;
-  const view = paper.view;
-  const layer = paper.project.activeLayer;
-  layer.removeChildren();
-  const bg = new paper.Path.Rectangle(view.bounds);
-  bg.fillColor = params.background;
+function getTextBounds() {
+  textr.words = []; textr.width = 0; textr.height = 0;
+  const wSpace = params.layout === 'vertical' ? params.collision.offset : 0;
+  const hSpace = params.layout === 'horizontal' ? params.collision.offset : 0;
+  // font letter-spacing → row/copy interval (px), per the reference formula
+  textr.interval = params.size.font * (params.interval * 10) / 1000;
 
   let units;
-  try { units = textUnits(font, params.text, params.fontSize, params.unit); } catch (e) { return; }
-  if (!units.length) return;
+  if (params.type === 'repeatLetter' || params.type === 'splitLetter') {
+    units = [...((params.phrase.trim() ? params.phrase : 'EMPTY').replace(/\s+/g, ''))];
+  } else {
+    const raw = (params.phrase.replace(/\s+$/, '').trim() ? params.phrase.replace(/\s+$/, '') : 'EMPTY');
+    units = raw.split(/\s+/).filter(Boolean);
+  }
 
-  const bases = units.map((d) => {
-    try { return paper.project.importSVG('<path d="' + d + '"/>', { insert: false }); } catch (e) { return null; }
-  });
+  for (const u of units) {
+    if (!u) continue;
+    const m = unitMetrics(u);
+    const wordObject = {
+      word: m.path, svg: m.svg,
+      pos: { width: m.advance + wSpace, height: m.height + hSpace },
+      size: { width: m.cx, height: m.cy },
+    };
+    textr.width = max(textr.width, wordObject.pos.width, 1);
+    textr.height = max(textr.height, m.height + hSpace, 1);
+    textr.words.push(wordObject);
+  }
+  if (!textr.words.length) textr.words.push({ word: new Path2D(), svg: '', pos: { width: 1, height: 1 }, size: { width: 0, height: 0 } });
+}
 
-  const n = params.count;
-  for (let i = 0; i < n; i++) {
-    const base = bases[i % bases.length];
-    if (!base) continue;
-    const item = base.clone({ insert: false });
-    const slot = layout(i, n, view);
-    item.position = new paper.Point(slot.x, slot.y);
-    const sv = 1 + noise2D(i * 0.37, 3.1) * params.scaleVar;
-    item.scale(Math.max(0.05, params.scale * sv));
-    item.rotate(params.baseRotation + spin + i * params.rotationStep + slot.angle);
-    const col = colorAt(i, n);
-    if (params.render === 'stroke') {
-      item.fillColor = null; item.strokeColor = col; item.strokeWidth = params.strokeWeight;
-    } else {
-      item.fillColor = col;
-      if (params.render === 'both') { item.strokeColor = col; item.strokeWidth = params.strokeWeight; }
-    }
-    item.opacity = params.opacity / 100;
-    layer.addChild(item);
+/////////////////////////////////////////////////////////////////////////////
+// Form arrangement
+/////////////////////////////////////////////////////////////////////////////
+let GW = 480, GH = 480;
+let formData = {};
+
+function generateForms() {
+  if (!FONT) return;
+  getTextBounds();
+  formData = { translate: {}, array: [], margins: params.margins.value, interval: textr.interval };
+  let textrSize = 0, index = 0;
+  formData.cnvsize = params.layout === 'vertical' ? GW : GH;
+
+  while (index < params.items.value) {
+    formData.array.push(new Form(index, textrSize));
+    let size;
+    if (params.layout === 'vertical') size = textr.height;
+    else if (params.type === 'repeatWord' || params.type === 'repeatLetter') size = textr.words[index % textr.words.length].pos.width;
+    else size = textr.width;
+    textrSize += size + formData.interval;
+    index++;
+  }
+  formData.size = textrSize;
+
+  switch (params.count.order) {
+    case 'backforth': formData.countIndex = floor(formData.array.length / 2); break;
+    case 'forward': formData.countIndex = -params.count.scope.max + params.count.scope.min - 1; break;
+    default: formData.countIndex = 0;
+  }
+
+  if (params.layout === 'vertical') {
+    formData.translate.x = GW / 2 + params.collision.offset / 2;
+    formData.translate.y = (GH - formData.size + formData.interval) / 2 + textr.height;
+  } else {
+    formData.translate.x = (GW - formData.size + formData.interval) / 2;
+    formData.translate.y = GH / 2 + textr.height - params.collision.offset / 2;
   }
 }
 
-// ---- UI ----
-const tool = createTool({ name: 'TEXTR', version: '0.1' });
-const canvas = tool.mountCanvas();
-paper.setup(canvas);
-function fitView() { paper.view.viewSize = new paper.Size(window.innerWidth, window.innerHeight); }
-window.addEventListener('resize', () => { fitView(); dirty = true; });
-fitView();
+class Form {
+  constructor(index, size) {
+    this.index = index;
+    this.text = []; this.svg = [];
+    this.x = params.layout === 'horizontal' ? size : 0;
+    this.y = params.layout === 'vertical' ? size : 0;
+    this.count = 0; this.mincount = 1;
+    this.scale = []; this.pos = [];
+    this.size = { width: [], height: [] };
+    this.translate = { x: 0, y: 0 };
+  }
 
-const main = tool.pages.main;
-const fText = main.addFolder({ title: 'Text' });
-fText.addBinding(params, 'text');
-fText.addBinding(params, 'font', { options: FONT_OPTIONS }).on('change', () => setFont(params.font));
-fText.addBinding(params, 'fontSize', { label: 'size', min: 20, max: 400, step: 1 });
-fText.addBinding(params, 'unit', { options: { Letters: 'letters', Words: 'words', Block: 'block' } });
+  updateIndex(index) {
+    const n = textr.words.length;
+    return (index >= 0 ? index : n + (index % n)) % n;
+  }
 
-const fLayout = main.addFolder({ title: 'Layout' });
-fLayout.addBinding(params, 'layout', { options: { Grid: 'grid', Row: 'row', Ring: 'ring', Spiral: 'spiral' } });
-fLayout.addBinding(params, 'count', { min: 1, max: 200, step: 1 });
-fLayout.addBinding(params, 'spread', { min: 0.2, max: 2, step: 0.05 });
-fLayout.addBinding(params, 'scale', { min: 0.1, max: 3, step: 0.05 });
-fLayout.addBinding(params, 'scaleVar', { label: 'scale var', min: 0, max: 1, step: 0.05 });
-fLayout.addBinding(params, 'baseRotation', { label: 'rotation', min: 0, max: 360, step: 1 });
-fLayout.addBinding(params, 'rotationStep', { label: 'rot step', min: -45, max: 45, step: 1 });
-fLayout.addBinding(params, 'faceOut', { label: 'face out' });
+  scroll(index, data) {
+    if (params.layout === 'vertical') {
+      this.y += data.scroll;
+      if (data.scroll > 0 && this.y > formData.size) { this.index -= formData.array.length; this.y = this.y % formData.size; }
+      if (data.scroll < 0 && this.y < 0) { this.index += formData.array.length; this.y = formData.size + (this.y % formData.size); }
+      return;
+    }
+    this.x += data.scroll;
+    if (params.type === 'repeatWord' || params.type === 'repeatLetter') {
+      if (data.scroll > 0 && this.x > formData.size) {
+        const space = (formData.array.length - this.index) % formData.array.length === 1 ? 0 : data.scroll;
+        this.index -= formData.array.length;
+        const obj = formData.array.reduce((m, it) => (it.x < m.x ? it : m), formData.array[0]);
+        const objectsize = textr.words[this.updateIndex(this.index)].pos.width + formData.interval;
+        this.x = obj.x - objectsize + space;
+      }
+      if (data.scroll < 0 && this.x < 0) {
+        const space = this.index % formData.array.length === 0 ? data.scroll : 0;
+        this.index += formData.array.length;
+        const obj = formData.array.reduce((m, it) => (it.x > m.x ? it : m), formData.array[0]);
+        const objectsize = textr.words[this.updateIndex(obj.index)].pos.width + formData.interval;
+        this.x = obj.x + objectsize + space;
+      }
+    } else {
+      if (data.scroll > 0 && this.x > formData.size) { this.index -= formData.array.length; this.x = this.x % formData.size; }
+      if (data.scroll < 0 && this.x < 0) { this.index += formData.array.length; this.x = formData.size + (this.x % formData.size); }
+    }
+  }
 
-const fStyle = main.addFolder({ title: 'Style' });
-fStyle.addBinding(params, 'render', { options: { Fill: 'fill', Stroke: 'stroke', Both: 'both' } });
-fStyle.addBinding(params, 'strokeWeight', { label: 'weight', min: 0.25, max: 8, step: 0.25 });
-fStyle.addBinding(params, 'colorMode', { label: 'color', options: { Solid: 'solid', Sequence: 'sequence', Transition: 'transition' } });
-fStyle.addBinding(params, 'paletteCount', { label: 'colors', min: 1, max: 3, step: 1 });
-fStyle.addBinding(params, 'c0', { label: 'color 1', view: 'color' });
-fStyle.addBinding(params, 'c1', { label: 'color 2', view: 'color' });
-fStyle.addBinding(params, 'c2', { label: 'color 3', view: 'color' });
-fStyle.addBinding(params, 'opacity', { min: 10, max: 100, step: 5 });
-fStyle.addBinding(params, 'background', { view: 'color' });
+  update(index, data) {
+    let allSize = 0, maxSize = 0, offset = 0;
+    this.text = []; this.svg = []; this.pos = []; this.size.width = []; this.size.height = []; this.scale = [];
+    this.count = this.setCount();
+    this.mincount = this.count === 1 ? 0 : 1;
+    const maxpos = formData.cnvsize * formData.margins;
+    const name = params.layout === 'vertical' ? 'x' : 'y';
+    this[name] = [];
 
-const fMotion = main.addFolder({ title: 'Motion', expanded: false });
-fMotion.addBinding(params, 'animate');
-fMotion.addBinding(params, 'animSpeed', { label: 'speed', min: 0, max: 3, step: 0.05 });
+    for (let i = 0; i < this.count; i++) {
+      const n = this.setIndex(i, index);
+      const content = textr.words[n % textr.words.length];
+      const w = params.layout === 'vertical' ? content.pos.width : textr.height;
+      this.text.push(content.word); this.svg.push(content.svg);
+      this.size.width.push(content.size.width); this.size.height.push(content.size.height);
+      this.pos.push(w);
+      allSize += w; maxSize = max(maxSize, w);
+      let pos = map(i, 0, this.count - this.mincount, -maxpos / 2, maxpos / 2);
+      pos -= w / 2;
+      this[name].push(pos);
+    }
+    const size = allSize - maxSize;
+    if (size > maxpos) offset = size - maxpos;
+    offset = this.count % 2 === 0 ? offset / 2 : offset;
+    this.translate[name] = params.collision.use ? offset / (this.count - this.mincount) : 0;
+    this.translate[name] = this.count === 1 ? maxpos / 2 : this.translate[name];
+  }
 
-attachExport(tool.pages.export, { getCanvas: tool.getCanvas, getSVG: () => paper.project.exportSVG({ asString: true }), name: 'textr' });
+  setCount() {
+    if (params.type === 'splitWord' || params.type === 'splitLetter') return textr.words.length;
+    return this.getOrderRange(params.count.order, params.count.scope.min, params.count.scope.max, this.index);
+  }
+  setIndex(i, index) {
+    if (params.type === 'splitWord' || params.type === 'splitLetter') return i;
+    return this.updateIndex(this.index);
+  }
 
-const presets = {
-  'Ring Type': { layout: 'ring', unit: 'letters', count: 24, spread: 1, scale: 0.7, faceOut: true, rotationStep: 0, colorMode: 'transition', paletteCount: 3, c0: '#ffffff', c1: '#6c5ce7', c2: '#00cec9', render: 'fill', background: '#0a0a12' },
-  'Spiral Drift': { layout: 'spiral', unit: 'letters', count: 90, spread: 1.1, scale: 0.45, scaleVar: 0.4, faceOut: true, colorMode: 'transition', paletteCount: 3, c0: '#fdcb6e', c1: '#e17055', c2: '#6c5ce7', render: 'fill', background: '#08060c' },
-  'Grid Stack': { layout: 'grid', unit: 'block', count: 36, spread: 1, scale: 0.5, scaleVar: 0, baseRotation: 0, rotationStep: 0, colorMode: 'sequence', paletteCount: 2, c0: '#ffffff', c1: '#b2bec3', render: 'fill', background: '#101014' },
-  Stacked: { text: 'ANTLII WORK STUDIO', font: 'Archivo Black', layout: 'row', unit: 'words', count: 12, spread: 1.4, scale: 0.8, colorMode: 'transition', paletteCount: 2, c0: '#ffffff', c1: '#6c5ce7', render: 'fill', background: '#0a0a12' },
-  'Outline Ring': { layout: 'ring', unit: 'letters', count: 30, spread: 1.1, scale: 0.8, faceOut: true, render: 'stroke', strokeWeight: 1.5, colorMode: 'transition', paletteCount: 3, c0: '#00cec9', c1: '#6c5ce7', c2: '#fd79a8', background: '#05060a' },
-  'Confetti Type': { font: 'Bungee', layout: 'grid', unit: 'letters', count: 80, spread: 1.2, scale: 0.4, scaleVar: 0.6, baseRotation: 0, rotationStep: 15, colorMode: 'sequence', paletteCount: 3, c0: '#fdcb6e', c1: '#e17055', c2: '#6c5ce7', render: 'fill', background: '#0c0410' },
-  Vortex: { font: 'Anton', layout: 'spiral', unit: 'letters', count: 60, spread: 1.0, scale: 0.5, faceOut: true, animate: true, animSpeed: 0.4, colorMode: 'transition', paletteCount: 3, c0: '#a29bfe', c1: '#74b9ff', c2: '#ffffff', render: 'fill', background: '#04040a' },
-  Marquee: { text: 'BIG', font: 'Anton', layout: 'row', unit: 'block', count: 6, spread: 1.6, scale: 0.9, colorMode: 'solid', paletteCount: 1, c0: '#ffffff', render: 'fill', background: '#e94560' },
-  'Mono Grid': { font: 'Major Mono', layout: 'grid', unit: 'block', count: 24, spread: 1, scale: 0.55, colorMode: 'sequence', paletteCount: 2, c0: '#dfe6e9', c1: '#636e72', render: 'fill', background: '#101014' },
-};
-function randomize(p) {
-  const layouts = ['grid', 'row', 'ring', 'spiral'];
-  const units = ['letters', 'words', 'block'];
-  p.layout = layouts[(Math.random() * layouts.length) | 0];
-  p.unit = units[(Math.random() * units.length) | 0];
-  p.count = 6 + (Math.random() * 120 | 0);
-  p.spread = 0.5 + Math.random() * 1.3;
-  p.scale = 0.3 + Math.random() * 1.2;
-  p.scaleVar = Math.random() * 0.6;
-  p.baseRotation = Math.random() * 360 | 0;
-  p.rotationStep = -20 + Math.random() * 40;
-  p.faceOut = Math.random() < 0.6;
+  motion(index, data) {
+    const nameval = params.layout === 'vertical' ? 'y' : 'x';
+    const namearr = params.layout === 'vertical' ? 'x' : 'y';
+    const cnvsize = params.layout === 'vertical' ? GH : GW;
+    const centerIndex = Math.round(this.count - this.mincount) / 2;
+    data.pos.yFreq = map(this[nameval], 0, cnvsize, -PI, PI) * data.pos.freq.y;
+    data.pos.yFreqAdd = map(this[nameval], 0, cnvsize, -PI, PI) * data.pos.add.y;
+    data.scale.yFreq = map(this[nameval], 0, cnvsize, -PI, PI) * data.scale.freq.y;
+    data.scale.yFreqAdd = map(this[nameval], 0, cnvsize, -PI, PI) * data.scale.add.y;
+
+    for (let i = 0; i < this.count; i++) {
+      const posAmp = this.ampEase(i, centerIndex, params.pos.amp.mode, params.pos.amp.ease);
+      const posFreq = this.freqFunction(i, centerIndex, data, data.pos);
+      const scaleFreq = this.freqFunction(i, centerIndex, data, data.scale);
+      this.scale[i] = params.scale.mode === 'none' ? 1 : map(scaleFreq + 0.5, 0, 1, data.scale.start, data.scale.end);
+      this[namearr][i] += posFreq * posAmp * data.pos.amp;
+    }
+  }
+
+  freqFunction(i, centerIndex, data, type) {
+    let freq;
+    const xFreq = map(i, 0, this.count - this.mincount, -PI, PI) * type.freq.x;
+    const sinPhase = type.mirror ? (i < centerIndex ? xFreq : -xFreq) : xFreq;
+    const centerOffset = i < centerIndex ? -PI * type.offset : PI * type.offset;
+    const sinMirror = type.mirror ? (i < centerIndex ? 0 : PI * type.addedMirror) : 0;
+    const addedOffset = TWO_PI * type.addedOffset;
+    switch (type.mode) {
+      case 'none': return 0;
+      case 'sin':
+        freq = sin(TWO_PI * data.frame * type.cycle + sinPhase + centerOffset + addedOffset + type.yFreq + sinMirror);
+        break;
+      case 'doublesin': {
+        const phaseAdd = map(i, 0, this.count - this.mincount, -PI, PI) * type.add.x;
+        let freqAdd = sin(TWO_PI * data.frame * type.add.cycle + phaseAdd + type.yFreqAdd);
+        freqAdd = ez(type.add.ease, (freqAdd + 1) / 2) * 2 - 1;
+        freq = sin(TWO_PI * data.frame * type.cycle + sinPhase + centerOffset + addedOffset + type.yFreq + centerOffset + freqAdd + sinMirror);
+        break;
+      }
+      case 'noise':
+        freq = type.simplex(
+          type.speed * sin(TWO_PI * data.frame + PI) + xFreq,
+          type.speed * cos(TWO_PI * data.frame) + xFreq,
+          type.speed * sin(TWO_PI * data.frame - PI) + type.yFreq,
+          type.speed * cos(TWO_PI * data.frame - HALF_PI) + type.yFreq,
+        );
+        break;
+    }
+    return ez(type.ease, (freq + 1) / 2) - 0.5;
+  }
+
+  ampEase(i, centerIndex, mode, ease) {
+    switch (mode) {
+      case 'uniform': return 1;
+      case 'center': return ez(ease, i < centerIndex ? map(i, 0, centerIndex, 1, 0) : map(i, centerIndex, this.count - this.mincount, 0, 1));
+      case 'edge': return ez(ease, i < centerIndex ? map(i, 0, centerIndex, 0, 1) : map(i, centerIndex, this.count - this.mincount, 1, 0));
+      case 'side0': return ez(ease, map(i, 0, this.count - this.mincount, 0, 1));
+      case 'side1': return ez(ease, map(i, 0, this.count - this.mincount, 1, 0));
+    }
+    return 1;
+  }
+
+  collision(index) {
+    if (!params.collision.use) return;
+    const name = params.layout === 'vertical' ? 'x' : 'y';
+    const arr = this[name];
+    const centerIndex = Math.round(arr.length / 2);
+    for (let i = centerIndex - 1; i >= 0; i--) if (arr[i] > arr[i + 1] - this.pos[i]) arr[i] = arr[i + 1] - this.pos[i];
+    for (let i = centerIndex + 1; i <= arr.length; i++) if (arr[i] < arr[i - 1] + this.pos[i - 1]) arr[i] = arr[i - 1] + this.pos[i - 1];
+  }
+
+  display(ctx) {
+    ctx.save();
+    ctx.translate(this.translate.x, this.translate.y);
+    if (params.layout === 'vertical') {
+      for (let i = 0; i < this.x.length; i++) this.stamp(ctx, this.x[i], this.y, i);
+    } else {
+      for (let i = 0; i < this.y.length; i++) this.stamp(ctx, this.x, this.y[i], i);
+    }
+    ctx.restore();
+  }
+  stamp(ctx, px, py, i) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.translate(this.size.width[i], this.size.height[i]);
+    ctx.scale(this.scale[i], this.scale[i]);
+    ctx.translate(-this.size.width[i], -this.size.height[i]);
+    ctx.fillStyle = params.color;
+    ctx.fill(this.text[i]);
+    ctx.restore();
+  }
+
+  getOrderRange(order, lo, hi, index) {
+    const seq = [];
+    index += params.count.index - formData.countIndex;
+    switch (order) {
+      case 'none': return params.count.value;
+      case 'random': {
+        const n = nBase(0, index * 0.2);
+        let num = map(n, -1, 1, lo, hi);
+        return fract(num) < 0.5 ? floor(num) : ceil(num);
+      }
+      case 'forward':
+        if (index < 0) for (let i = hi; i >= lo; i--) seq.push(i); else for (let i = lo; i <= hi; i++) seq.push(i);
+        break;
+      case 'backward':
+        if (index < 0) for (let i = lo; i <= hi; i++) seq.push(i); else for (let i = hi; i >= lo; i--) seq.push(i);
+        break;
+      case 'backforth':
+        for (let i = lo; i <= hi; i++) seq.push(i);
+        for (let i = hi - 1; i > lo; i--) seq.push(i);
+        break;
+    }
+    return seq[abs(index) % seq.length];
+  }
 }
-attachPresets(tool.pages.options, { pane: tool.pane, params, presets, randomize, onApply: () => { dirty = true; } });
 
-// ---- Custom font drag-drop ----
+/////////////////////////////////////////////////////////////////////////////
+// Per-frame data + draw
+/////////////////////////////////////////////////////////////////////////////
+function buildFrameData() {
+  const d = { frame: cnv.frame / cnv.maxFrames };
+  d.scroll = cnv.animation ? map(params.size.font, params.size.min, params.size.max, params.scroll, params.scroll * 5) : 0;
+  const p = params.pos, s = params.scale;
+  d.pos = {
+    mode: p.mode, ease: p.ease,
+    amp: map(p.amp.value, 0, 100, 0, formData.cnvsize),
+    speed: map(p.noise.speed, 0, 1, 0, 2),
+    cycle: p.sin.cycle, simplex: nPos, mirror: p.phase.mirror, offset: p.phase.offset,
+    addedOffset: 0, addedMirror: 1,
+    freq: { x: p.mode === 'noise' ? p.noise.x : p.sin.x, y: p.mode === 'noise' ? p.noise.y : p.sin.y },
+    add: { x: p.add.x, y: p.add.y, ease: p.add.ease, cycle: p.add.cycle },
+  };
+  const sm = s.mode === 'pos' ? d.pos.mode : s.mode;
+  d.scale = {
+    mode: sm, ease: s.mode === 'pos' ? d.pos.ease : s.ease,
+    start: s.start, end: s.end,
+    speed: s.mode === 'pos' ? d.pos.speed : map(s.noise.speed, 0, 1, 0, 2),
+    cycle: s.mode === 'pos' ? d.pos.cycle : s.sin.cycle,
+    simplex: nScale,
+    mirror: s.mode === 'pos' ? d.pos.mirror : s.phase.mirror,
+    offset: s.mode === 'pos' ? d.pos.offset : 0,
+    addedOffset: s.phase.offset, addedMirror: s.phase.mirror ? 0 : 1,
+    freq: {
+      x: s.mode === 'pos' ? d.pos.freq.x : (s.mode === 'noise' ? s.noise.x : s.sin.x),
+      y: s.mode === 'pos' ? d.pos.freq.y : (s.mode === 'noise' ? s.noise.y : s.sin.y),
+    },
+    add: {
+      x: s.mode === 'pos' ? d.pos.add.x : s.add.x,
+      y: s.mode === 'pos' ? d.pos.add.y : s.add.y,
+      ease: s.mode === 'pos' ? d.pos.add.ease : s.add.ease,
+      cycle: s.mode === 'pos' ? d.pos.add.cycle : s.add.cycle,
+    },
+  };
+  return d;
+}
+
+function drawForms(ctx) {
+  const d = buildFrameData();
+  ctx.save();
+  ctx.translate(formData.translate.x, formData.translate.y);
+  for (let i = 0; i < formData.array.length; i++) {
+    const f = formData.array[i];
+    f.scroll(i, d);
+    f.update(i, d);
+    f.motion(i, d);
+    f.collision(i);
+    f.display(ctx);
+  }
+  ctx.restore();
+  if (cnv.animation) cnv.frame = d.frame >= 1 ? 0 : cnv.frame + 1;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// p5 sketch (fixed render-space canvas, CSS-fit to viewport — like the
+// reference's fixed gForm scaled to the display).
+/////////////////////////////////////////////////////////////////////////////
+const tool = createTool({ name: 'TEXTR', version: '0.2' });
+let P = null, displayCanvas = null, isReady = false, pendingPreset = null;
+
+function applyRatio(p) {
+  [GW, GH] = RATIOS[cnv.ratio];
+  p.resizeCanvas(GW, GH);
+  p.pixelDensity(2);
+  fitCanvas();
+  generateForms();
+}
+function fitCanvas() {
+  if (!displayCanvas) return;
+  const pad = 48;
+  const k = min((window.innerWidth - pad * 2) / GW, (window.innerHeight - pad * 2) / GH);
+  displayCanvas.elt.style.width = `${GW * k}px`;
+  displayCanvas.elt.style.height = `${GH * k}px`;
+}
+function drawChecker(ctx) {
+  const s = (GW + GH) / 100;
+  for (let y = 0, j = 0; y < GH; y += s, j++) for (let x = 0, i = 0; x < GW; x += s, i++) { ctx.fillStyle = (i + j) % 2 ? '#ffffff' : '#dcdcdc'; ctx.fillRect(x, y, s + 1, s + 1); }
+}
+
+tool.startSketch((p) => {
+  p.setup = () => {
+    P = p;
+    tool.canvasHost.style.display = 'flex';
+    tool.canvasHost.style.alignItems = 'center';
+    tool.canvasHost.style.justifyContent = 'center';
+    [GW, GH] = RATIOS[cnv.ratio];
+    displayCanvas = p.createCanvas(GW, GH);
+    displayCanvas.elt.style.display = 'block';
+    p.pixelDensity(2);
+    p.frameRate(rec.frameRate);
+    fitCanvas();
+    loadFont(params.font).then((f) => { FONT = f; generateForms(); isReady = true; });
+  };
+  p.draw = () => {
+    if (pendingPreset && FONT) { const n = pendingPreset; pendingPreset = null; applyPreset(n); }
+    const ctx = displayCanvas.elt.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, displayCanvas.elt.width, displayCanvas.elt.height);
+    ctx.restore();
+    ctx.save();
+    ctx.scale(p.pixelDensity(), p.pixelDensity());
+    if (cnv.bg.mode === 'fill') { ctx.fillStyle = cnv.bg.fill; ctx.fillRect(0, 0, GW, GH); }
+    else drawChecker(ctx);
+    if (FONT && formData.array) drawForms(ctx);
+    ctx.restore();
+  };
+  p.windowResized = () => fitCanvas();
+});
+
+/////////////////////////////////////////////////////////////////////////////
+// SVG export — reconstruct the current arrangement with Paper.js.
+/////////////////////////////////////////////////////////////////////////////
+function renderSVG() {
+  const paper = window.paper;
+  if (!paper || !FONT) { console.warn('Paper.js / font not ready — SVG export unavailable'); return ''; }
+  const d = buildFrameData();
+  const c = document.createElement('canvas'); c.width = GW; c.height = GH;
+  paper.setup(c); paper.pixelRatio = 1;
+
+  if (cnv.bg.mode === 'fill') {
+    const bg = new paper.Shape.Rectangle(new paper.Rectangle(0, 0, GW, GH));
+    bg.fillColor = cnv.bg.fill;
+    new paper.Layer({ position: paper.view.center, children: [bg] });
+  }
+  const mask = new paper.Shape.Rectangle(new paper.Rectangle(0, 0, GW, GH));
+  mask.translate(-formData.translate.x, -formData.translate.y);
+  const layer = new paper.Layer({ position: new paper.Point(0, 0), applyMatrix: false });
+  layer.translate(formData.translate.x, formData.translate.y);
+  layer.addChildren([mask]);
+
+  for (let x = 0; x < formData.array.length; x++) {
+    const f = formData.array[x];
+    f.scroll(x, d); f.update(x, d); f.motion(x, d); f.collision(x);
+    const shapes = [];
+    const place = (px, py, i) => {
+      if (!f.svg[i]) return;
+      const it = new paper.CompoundPath(f.svg[i]);
+      it.translate(new paper.Point(f.translate.x, f.translate.y));
+      it.translate(new paper.Point(px, py));
+      it.translate(new paper.Point(f.size.width[i], f.size.height[i]));
+      it.scale(f.scale[i]);
+      it.translate(new paper.Point(-f.size.width[i], -f.size.height[i]));
+      it.fillColor = params.color;
+      shapes.push(it);
+    };
+    if (params.layout === 'vertical') for (let i = 0; i < f.x.length; i++) place(f.x[i], f.y, i);
+    else for (let i = 0; i < f.y.length; i++) place(f.x, f.y[i], i);
+    layer.addChildren(shapes);
+  }
+  layer.clipped = true;
+  paper.view.draw();
+  const svg = paper.project.exportSVG({ asString: true });
+  paper.project.clear(); paper.view.remove();
+  return svg;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Custom font drag-drop
+/////////////////////////////////////////////////////////////////////////////
 tool.canvasHost.addEventListener('dragover', (e) => e.preventDefault());
 tool.canvasHost.addEventListener('drop', (e) => {
   e.preventDefault();
   const file = e.dataTransfer?.files?.[0];
-  if (!file || (!/\.(ttf|otf)$/i.test(file.name) && !/font/i.test(file.type))) return;
+  if (!file || !/\.(ttf|otf|woff)$/i.test(file.name)) return;
   const reader = new FileReader();
-  reader.onload = () => { try { font = parseFont(reader.result); dirty = true; } catch (err) { console.error('font parse failed', err); } };
+  reader.onload = () => { try { FONT = parseFont(reader.result); generateForms(); } catch (err) { console.error('font parse failed', err); } };
   reader.readAsArrayBuffer(file);
 });
 
-// ---- Animate ----
-tool.pane.on('change', () => { dirty = true; });
-paper.view.onFrame = (e) => {
-  if (params.animate) { spin += params.animSpeed * Math.min(e.delta, 0.1) * 60; dirty = true; }
-  if ((dirty || params.animate) && font) { build(); dirty = false; }
+/////////////////////////////////////////////////////////////////////////////
+// UI — CANVAS / TEXT / COUNT / COLLISION folders + POSITION & SCALE motion tabs
+/////////////////////////////////////////////////////////////////////////////
+const main = tool.pages.main;
+
+const fCanvas = main.addFolder({ title: 'CANVAS', expanded: false });
+fCanvas.addBinding(cnv, 'ratio', { label: 'Canvas Ratio', options: RATIO_OPTS }).on('change', () => { if (P) applyRatio(P); });
+const bgMode = fCanvas.addBinding(cnv.bg, 'mode', { label: 'Background', options: BG_OPTS }).on('change', () => bgUI());
+const bgFill = fCanvas.addBinding(cnv.bg, 'fill', { label: 'BG Color', view: 'color' });
+fCanvas.addBinding(params, 'color', { label: 'Text Color', view: 'color' });
+fCanvas.addBinding(cnv, 'seed', { label: 'Noise Seed', min: 0, max: 1000, step: 1 }).on('change', () => { seedEvent(); });
+
+const fText = main.addFolder({ title: 'TEXT' });
+fText.addBinding(params, 'font', { label: 'Font', options: FONT_OPTIONS }).on('change', (ev) => { loadFont(ev.value).then((f) => { FONT = f; generateForms(); }); });
+fText.addBinding(params, 'phrase', { label: 'Phrase' }).on('change', () => generateForms());
+fText.addBinding(params, 'type', { label: 'Text Mode', options: TEXT_OPTS }).on('change', () => generateForms());
+fText.addBinding(params, 'layout', { label: 'Direction', options: LAYOUT_OPTS }).on('change', () => generateForms());
+fText.addBinding(params.size, 'font', { label: 'Font Size', min: params.size.min, max: params.size.max, step: 0.1 }).on('change', () => generateForms());
+fText.addBinding(params, 'interval', { label: 'Letter Spacing', min: -20, max: 20, step: 0.1 }).on('change', () => generateForms());
+fText.addBinding(params.items, 'value', { label: 'Rows', min: 1, max: 150, step: 1 }).on('change', () => generateForms());
+fText.addBinding(params.margins, 'value', { label: 'Margins', min: 0, max: 1.25, step: 0.01 });
+fText.addBinding(params, 'scroll', { label: 'Scroll', min: -5, max: 5, step: 0.1 });
+
+const fCount = main.addFolder({ title: 'COUNT', expanded: false });
+fCount.addBinding(params.count, 'order', { label: 'Order', options: ORDER_OPTS }).on('change', () => { countUI(); generateForms(); });
+const countVal = fCount.addBinding(params.count, 'value', { label: 'Count', min: 1, max: 150, step: 1 });
+const countMin = fCount.addBinding(params.count.scope, 'min', { label: 'Scope Min', min: 1, max: 60, step: 1 }).on('change', () => generateForms());
+const countMax = fCount.addBinding(params.count.scope, 'max', { label: 'Scope Max', min: 1, max: 60, step: 1 }).on('change', () => generateForms());
+fCount.addBinding(params.count, 'index', { label: 'Index Shift', min: -50, max: 50, step: 1 }).on('change', () => generateForms());
+
+const fColl = main.addFolder({ title: 'COLLISION', expanded: false });
+fColl.addBinding(params.collision, 'use', { label: 'Use Collision' });
+fColl.addBinding(params.collision, 'offset', { label: 'Spacing', min: -10, max: 20, step: 0.1 }).on('change', () => generateForms());
+
+const mtab = main.addTab({ pages: [{ title: 'POSITION' }, { title: 'SCALE' }] });
+function buildMotionPage(page, key, isScale) {
+  const ch = params[key];
+  page.addBinding(ch, 'mode', { label: 'Motion', options: isScale ? SCALE_OPTS : MOTION_OPTS });
+  page.addBinding(ch, 'ease', { label: 'Easing', options: EASE_OPTS });
+  if (isScale) { page.addBinding(ch, 'start', { label: 'Scale Start', min: 0, max: 2, step: 0.01 }); page.addBinding(ch, 'end', { label: 'Scale End', min: 0, max: 2, step: 0.01 }); }
+  else { page.addBinding(ch.amp, 'value', { label: 'Amplitude', min: 0, max: 100, step: 1 }); page.addBinding(ch.amp, 'mode', { label: 'Amp Easing', options: AMP_OPTS }); page.addBinding(ch.amp, 'ease', { label: 'Amp Ease', options: EASE_OPTS }); }
+  page.addBinding(ch.sin, 'x', { label: 'Freq X', min: -10, max: 10, step: 0.01 });
+  page.addBinding(ch.sin, 'y', { label: 'Freq Y', min: -10, max: 10, step: 0.01 });
+  page.addBinding(ch.sin, 'cycle', { label: 'Cycles', min: -10, max: 10, step: 1 });
+  page.addBinding(ch.noise, 'x', { label: 'Noise X', min: 0, max: 1, step: 0.01 });
+  page.addBinding(ch.noise, 'y', { label: 'Noise Y', min: 0, max: 1, step: 0.01 });
+  page.addBinding(ch.noise, 'speed', { label: 'Noise Speed', min: 0, max: 1, step: 0.01 });
+  page.addBinding(ch.phase, 'mirror', { label: 'Mirror Phase' });
+  page.addBinding(ch.phase, 'offset', { label: 'Phase Offset', min: -1, max: 1, step: 0.01 });
+  page.addBinding(ch, 'seed', { label: 'Noise Seed', min: 0, max: 1000, step: 1 }).on('change', () => seedEvent());
+}
+buildMotionPage(mtab.pages[0], 'pos', false);
+buildMotionPage(mtab.pages[1], 'scale', true);
+
+function bgUI() { bgFill.hidden = cnv.bg.mode !== 'fill'; }
+function countUI() { const none = params.count.order === 'none'; countVal.hidden = !none; countMin.hidden = none; countMax.hidden = none; }
+
+/////////////////////////////////////////////////////////////////////////////
+// Presets (original names; reference parameter taxonomy)
+/////////////////////////////////////////////////////////////////////////////
+const presets = {
+  'Vertical Pulse': {
+    cnv: { ratio: '1:1', bg: { mode: 'fill', fill: '#101010' }, seed: 471, frame: 0 },
+    params: { font: 'Anton', phrase: 'PULSE', layout: 'vertical', type: 'repeatLetter', color: '#f5f5f5', scroll: 0, interval: 2, collision: { use: true, offset: 3 }, size: { font: 16 }, margins: { value: 0.9 }, items: { value: 28 }, count: { order: 'backforth', index: 0, value: 25, scope: { min: 3, max: 18 } }, pos: { mode: 'sin', ease: 'easeInOutSine', seed: 481, amp: { mode: 'uniform', ease: 'linear', value: 40 }, phase: { mirror: true, offset: 0 }, sin: { x: 2, y: 1.5, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'none', ease: 'linear', seed: 629, start: 1, end: 1, phase: { mirror: false, offset: 0 }, sin: { x: 1, y: 1.5, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } } },
+  },
+  'Lateral Drift': {
+    cnv: { ratio: '16:9', bg: { mode: 'fill', fill: '#ffffff' }, seed: 200, frame: 0 },
+    params: { font: 'Space Mono', phrase: 'DRIFTING SIDEWAYS', layout: 'horizontal', type: 'repeatLetter', color: '#1a1a1a', scroll: 0.4, interval: 6, collision: { use: false, offset: 2 }, size: { font: 12 }, margins: { value: 0.6 }, items: { value: 36 }, count: { order: 'none', index: 0, value: 7, scope: { min: 2, max: 16 } }, pos: { mode: 'sin', ease: 'easeInOutCubic', seed: 100, amp: { mode: 'center', ease: 'easeOutSine', value: 30 }, phase: { mirror: true, offset: 0 }, sin: { x: 4, y: 1.2, cycle: 3 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'none', ease: 'linear', seed: 7, start: 0.6, end: 1, phase: { mirror: false, offset: 0 }, sin: { x: 1, y: 1, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } } },
+  },
+  'Noise Bloom': {
+    cnv: { ratio: '1:1', bg: { mode: 'fill', fill: '#8624f5' }, seed: 386, frame: 0 },
+    params: { font: 'Archivo Black', phrase: 'NOISE', layout: 'horizontal', type: 'repeatLetter', color: '#ff8200', scroll: 0, interval: -8, collision: { use: true, offset: 0 }, size: { font: 26 }, margins: { value: 0.2 }, items: { value: 26 }, count: { order: 'none', index: -10, value: 20, scope: { min: 2, max: 40 } }, pos: { mode: 'none', ease: 'easeInOutCubic', seed: 248, amp: { mode: 'edge', ease: 'linear', value: 30 }, phase: { mirror: true, offset: 0 }, sin: { x: -1.5, y: 1.6, cycle: 3 }, add: { ease: 'easeInExpo', x: -0.3, y: 0.3, cycle: -3 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'noise', ease: 'easeInOutQuad', seed: 184, start: 0.85, end: 0.2, phase: { mirror: false, offset: 0 }, sin: { x: 0.46, y: 1.54, cycle: -5 }, add: { ease: 'easeInCubic', x: 1, y: 0.5, cycle: 7 }, noise: { x: 0.2, y: 0.2, speed: 1 } } },
+  },
+  'Diamond Wave': {
+    cnv: { ratio: '4:5', bg: { mode: 'fill', fill: '#04130f' }, seed: 88, frame: 0 },
+    params: { font: 'Space Mono', phrase: 'FLOW STATE', layout: 'vertical', type: 'repeatWord', color: '#3fe0a6', scroll: 0, interval: 5, collision: { use: true, offset: 4 }, size: { font: 9 }, margins: { value: 0.95 }, items: { value: 34 }, count: { order: 'backforth', index: 0, value: 25, scope: { min: 2, max: 20 } }, pos: { mode: 'doublesin', ease: 'easeInOutSine', seed: 12, amp: { mode: 'uniform', ease: 'linear', value: 35 }, phase: { mirror: false, offset: 0.2 }, sin: { x: 3, y: 1.4, cycle: 2 }, add: { ease: 'easeInOutQuad', x: 0.4, y: 0.5, cycle: 3 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'sin', ease: 'linear', seed: 7, start: 0.5, end: 1.2, phase: { mirror: false, offset: 0 }, sin: { x: 2, y: 1, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } } },
+  },
+  'Ticker Tape': {
+    cnv: { ratio: '2:1', bg: { mode: 'fill', fill: '#111111' }, seed: 5, frame: 0 },
+    params: { font: 'Major Mono', phrase: 'transmission', layout: 'horizontal', type: 'splitLetter', color: '#ffba08', scroll: 0.6, interval: 4, collision: { use: false, offset: 2 }, size: { font: 22 }, margins: { value: 0.5 }, items: { value: 8 }, count: { order: 'none', index: 0, value: 1, scope: { min: 2, max: 16 } }, pos: { mode: 'sin', ease: 'linear', seed: 3, amp: { mode: 'side0', ease: 'easeInOutCubic', value: 18 }, phase: { mirror: false, offset: 0 }, sin: { x: 1.5, y: 1, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'none', ease: 'linear', seed: 7, start: 1, end: 1, phase: { mirror: false, offset: 0 }, sin: { x: 1, y: 1, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } } },
+  },
+  'Mirror Column': {
+    cnv: { ratio: '9:16', bg: { mode: 'fill', fill: '#1a0b2e' }, seed: 333, frame: 0 },
+    params: { font: 'Bungee', phrase: 'ECHO', layout: 'vertical', type: 'repeatLetter', color: '#e0aaff', scroll: 0, interval: 0, collision: { use: true, offset: 2 }, size: { font: 14 }, margins: { value: 0.85 }, items: { value: 40 }, count: { order: 'forward', index: 0, value: 25, scope: { min: 1, max: 14 } }, pos: { mode: 'sin', ease: 'easeInOutQuad', seed: 21, amp: { mode: 'uniform', ease: 'linear', value: 45 }, phase: { mirror: true, offset: 0 }, sin: { x: 2.5, y: 2, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } }, scale: { mode: 'none', ease: 'linear', seed: 7, start: 1, end: 1, phase: { mirror: false, offset: 0 }, sin: { x: 1, y: 1, cycle: 2 }, add: { ease: 'linear', x: 0.5, y: 0.5, cycle: 0 }, noise: { x: 0.2, y: 0.5, speed: 0.5 } } },
+  },
 };
 
-setFont(params.font);
+function deepMerge(dst, src) {
+  for (const k of Object.keys(src)) {
+    if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k])) { dst[k] = dst[k] || {}; deepMerge(dst[k], src[k]); }
+    else dst[k] = src[k];
+  }
+}
+function resetToDefaults() { deepMerge(cnv, structuredClone(DEFAULTS.cnv)); deepMerge(params, structuredClone(DEFAULTS.params)); }
+function applyPreset(name) {
+  const pr = typeof name === 'string' ? presets[name] : name;
+  if (!pr) return;
+  resetToDefaults();
+  if (pr.cnv) deepMerge(cnv, pr.cnv);
+  if (pr.params) deepMerge(params, pr.params);
+  cnv.frame = pr.cnv?.frame ?? 0;
+  const finish = () => { if (P) applyRatio(P); else generateForms(); seedEvent(); bgUI(); countUI(); tool.pane.refresh(); };
+  loadFont(params.font).then((f) => { FONT = f; finish(); }).catch(() => finish());
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Export + OPTIONS
+/////////////////////////////////////////////////////////////////////////////
+attachExport(tool.pages.export, { getCanvas: tool.getCanvas, getSVG: renderSVG, name: 'textr' });
+
+const presetState = { name: 'Vertical Pulse' };
+const opts = tool.pages.options;
+opts.addBinding(presetState, 'name', { label: 'Preset', options: Object.fromEntries(Object.keys(presets).map((k) => [k, k])) }).on('change', (ev) => applyPreset(ev.value));
+opts.addButton({ title: 'Apply / Restart Preset' }).on('click', () => applyPreset(presetState.name));
+opts.addBinding(cnv, 'animation', { label: 'Animate' }).on('change', () => { cnv.frame = 0; });
+opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
+
+window.addEventListener('resize', fitCanvas);
+// Dev hook — drive presets / inspect state / feed live antlii presets for A/B.
+window.__textr = { applyPreset, generateForms, renderSVG, cnv, params, textr, presets, setFrame: (f) => { cnv.frame = f; } };
+
+bgUI(); countUI();
+pendingPreset = 'Vertical Pulse';
