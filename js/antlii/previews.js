@@ -118,18 +118,24 @@ const effects = {
     },
   },
   bluur: {
+    // A small grid of soft, per-shape-blurred forms fused through MULTIPLY over a
+    // pale palette-derived ground — the new BLUUR engine's signature look.
     draw(ctx, f) {
-      ctx.fillStyle = '#06070d'; ctx.fillRect(0, 0, W, H);
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 7; i++) {
-        const a = f * 0.01 + i * 0.9;
-        const x = W / 2 + Math.cos(a) * 40 * Math.sin(i + f * 0.005), y = H / 2 + Math.sin(a * 1.2) * 26;
-        const r = 28 + Math.sin(f * 0.02 + i) * 10;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, `hsla(${(f * 0.5 + i * 40) % 360},80%,60%,0.55)`); g.addColorStop(1, 'hsla(0,0%,0%,0)');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#f3e9d6'; ctx.fillRect(0, 0, W, H);
+      const cols = 3, rows = 3, cw = W / cols, ch = H / rows;
+      const cols5 = ['#3c2706', '#cc3904', '#e5cf0a', '#f3a712', '#7a5649'];
+      ctx.globalCompositeOperation = 'multiply';
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const i = r * cols + c;
+        const ox = Math.sin(f * 0.012 + i * 1.3) * 10, oy = Math.cos(f * 0.01 + i * 0.7) * 10;
+        const x = c * cw + cw / 2 + ox, y = r * ch + ch / 2 + oy;
+        const rad = cw * (0.62 + Math.sin(f * 0.015 + i) * 0.16);
+        ctx.filter = `blur(${6 + Math.sin(f * 0.02 + i) * 3}px)`;
+        ctx.fillStyle = cols5[i % cols5.length];
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
     },
   },
   plain: {
