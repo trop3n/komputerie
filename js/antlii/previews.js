@@ -83,13 +83,19 @@ const effects = {
   sampl: {
     draw(ctx, f) {
       ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
-      const cx = W / 2, cy = H / 2, n = 46;
-      for (let i = 0; i < n; i++) {
-        const t = i / n * Math.PI * 2, r = 34 + Math.cos(t * 3) * 8;
-        const s = 2 + (1 + Math.sin(t * 2 + f * 0.05)) * 1.6;
-        ctx.fillStyle = `hsl(${(i / n * 120 + 330) % 360},75%,62%)`;
-        ctx.beginPath(); ctx.arc(cx + Math.cos(t) * r, cy + Math.sin(t) * r * 0.7, s, 0, Math.PI * 2); ctx.fill();
-      }
+      // glyph outline traced by a travelling field of coloured dots
+      ctx.save();
+      ctx.font = `900 ${Math.round(H * 0.7)}px Arial, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 5 + (1 + Math.sin(f * 0.06)) * 1.5;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([0.1, 8]);
+      ctx.lineDashOffset = -f * 0.7;
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, '#ff4d6d'); grad.addColorStop(0.5, '#ffb703'); grad.addColorStop(1, '#3a86ff');
+      ctx.strokeStyle = grad;
+      ctx.strokeText('Sa', W / 2, H / 2 + 2);
+      ctx.restore();
     },
   },
   rastr: {
