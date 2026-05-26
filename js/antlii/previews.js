@@ -99,15 +99,26 @@ const effects = {
     },
   },
   rastr: {
-    draw(ctx, f) {
+    // A glyph rasterized into a grid of shapes — one stamp per covered cell,
+    // gradient-coloured across the width and rippled by a sine wave (RASTR).
+    init() {
+      const g = document.createElement('canvas'); g.width = W; g.height = H;
+      const c = g.getContext('2d');
+      c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '900 92px "Arial Black", Arial, sans-serif';
+      c.fillText('R', W / 2, H / 2 + 4);
+      return { data: c.getImageData(0, 0, W, H).data };
+    },
+    draw(ctx, f, s) {
       ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
-      const gx = 22, gy = 14, cw = W / gx, ch = H / gy;
+      const gx = 34, gy = 24, cw = W / gx, ch = H / gy;
       for (let r = 0; r < gy; r++) for (let c = 0; c < gx; c++) {
-        const m = Math.sin(c * 0.5 - f * 0.05) * 0.5 + 0.5;
-        const cov = Math.max(0, m - Math.abs(r - gy / 2) / (gy / 2) * 0.8);
-        if (cov <= 0.12) continue;
-        ctx.fillStyle = `hsl(${(c / gx * 160 + 180) % 360},70%,62%)`;
-        ctx.beginPath(); ctx.arc(c * cw + cw / 2, r * ch + ch / 2, cw * 0.5 * cov, 0, Math.PI * 2); ctx.fill();
+        const px = Math.min(W - 1, (c * cw + cw / 2) | 0), py = Math.min(H - 1, (r * ch + ch / 2) | 0);
+        if (s.data[(py * W + px) * 4 + 3] < 128) continue;
+        const wave = Math.sin(c * 0.45 - f * 0.05) * 2.6;
+        const t = c / gx;
+        ctx.fillStyle = `hsl(${(332 - t * 150 + f * 0.3) % 360},82%,62%)`;
+        ctx.beginPath(); ctx.arc(c * cw + cw / 2, r * ch + ch / 2 + wave, cw * 0.46, 0, Math.PI * 2); ctx.fill();
       }
     },
   },
