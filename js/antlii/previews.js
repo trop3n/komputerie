@@ -238,13 +238,20 @@ const effects = {
     },
   },
   dithr: {
+    // A lit sphere ordered-dithered and remapped through a blue→white palette —
+    // DITHR's signature (a 3D form dithered + palette-mapped).
     draw(ctx, f) {
-      ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
       const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5], cell = 4;
+      const pal = ['#11173a', '#2f6fed', '#43d9ff', '#eaf6ff'];
+      const cx = W / 2, cy = H / 2, R = 42;
+      const lx = Math.cos(f * 0.03), ly = Math.sin(f * 0.03 * 0.7);
       for (let y = 0; y < H; y += cell) for (let x = 0; x < W; x += cell) {
-        const lum = (x / W) * 0.9 + Math.sin(y / H * 3 + f * 0.03) * 0.1;
+        const dx = (x - cx) / R, dy = (y - cy) / R, d2 = dx * dx + dy * dy;
+        const lum = d2 <= 1 ? Math.max(0.06, dx * lx * 0.55 + dy * ly * 0.55 + Math.sqrt(1 - d2) * 0.7) : 0.1;
         const bi = (((y / cell) | 0) & 3) * 4 + (((x / cell) | 0) & 3);
-        if ((1 - lum) * 16 > bayer[bi]) { ctx.fillStyle = '#e8e8e8'; ctx.fillRect(x, y, cell - 1, cell - 1); }
+        const v = Math.min(0.999, Math.max(0, lum)) * (pal.length - 1);
+        const idx = Math.min(pal.length - 1, Math.floor(v) + (((v % 1) * 16 > bayer[bi]) ? 1 : 0));
+        ctx.fillStyle = pal[idx]; ctx.fillRect(x, y, cell - 1, cell - 1);
       }
     },
   },
