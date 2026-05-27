@@ -223,18 +223,27 @@ const effects = {
     },
   },
   biom: {
+    // A few orbiting forms, each stamped as concentric gradient rings (large→small
+    // filled circles alternating colour) inside an ellipse clip — BIOM's signature
+    // organic-cell bloom.
     draw(ctx, f) {
-      ctx.fillStyle = '#0a0e17'; ctx.fillRect(0, 0, W, H);
-      const m = 10;
-      ctx.save(); ctx.beginPath(); ctx.rect(m, m, W - 2 * m, H - 2 * m); ctx.clip();
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 5; i++) {
-        const x = W * ((i * 0.27 + 0.15) % 1), y = H * ((i * 0.4 + 0.3) % 1), r = 18 + Math.sin(f * 0.03 + i) * 8;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `hsla(${(190 + i * 20) % 360},60%,62%,0.5)`); g.addColorStop(1, 'transparent');
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2, t = f * 0.012;
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(cx, cy, W * 0.46, H * 0.46, 0, 0, 7); ctx.clip();
+      const layers = 13, rad = Math.min(W, H) * 0.2;
+      for (let i = 0; i < 6; i++) {
+        const px = cx + (Math.sin(t + i * 1.7) + Math.cos(t * 1.3 + i)) * rad;
+        const py = cy + (Math.sin(t * 0.9 + i * 2.1) + Math.cos(t + i * 0.6)) * rad;
+        for (let L = 0; L < layers; L++) {
+          const size = (1 - L / layers) * Math.min(W, H) * 0.26;
+          const v = Math.sin((L / (layers - 1)) * 6 + i * 0.5 - f * 0.04);
+          const c = Math.round((v * 0.5 + 0.5) * 255);
+          ctx.fillStyle = `rgb(${c},${Math.round(c * 0.15)},${Math.round(c * 0.1)})`;
+          ctx.beginPath(); ctx.arc(px, py, size / 2, 0, 7); ctx.fill();
+        }
       }
-      ctx.globalCompositeOperation = 'source-over'; ctx.restore();
-      ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 1; ctx.strokeRect(m, m, W - 2 * m, H - 2 * m);
+      ctx.restore();
     },
   },
   dithr: {

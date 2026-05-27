@@ -1,127 +1,438 @@
-// BIOM — organic "visual growth". Seeded soft radial-gradient cells with
-// concentric rings pulse and grow via noise, blended additively for organic
-// fusion and soft color transitions, framed inside a customizable Swiss-style
-// poster layout (margin, grid, header label, accent border). p5 2D, animated.
+// BIOM — organic generative blooms. A seeded set of "forms" each trace a
+// Lissajous orbit (sin+cos of the form's random phase offsets, animated over a
+// looped frame); every form is then stamped once per gradient LAYER, the layers
+// fanning outward by a spacing multiplier and lerping in size from start→end, so
+// each form becomes a nested concentric trail. Layer colour comes from an
+// Inigo-Quilez-style sinusoidal palette (a base colour + per-channel phase
+// offsets + a light point), optionally animated; a polar clip mask
+// (ellipse/rect/triangle) bounds the field. p5 2D, looped animation.
+//
+// A faithful re-implementation (homage) of antlii's BIOM engine — algorithm,
+// parameter taxonomy, defaults and ranges studied from the public
+// antlii.github.io/biom-tool source. Original code, preset names and palettes;
+// antlii's poster/branding layout, fonts and watermark are omitted (we render
+// the graphics field on its own).
 import { createTool } from '../../js/antlii/shell.js';
-import { attachPresets } from '../../js/antlii/presets.js';
 import { attachExport } from '../../js/antlii/export.js';
-import { interpolateHex } from '../../js/antlii/palette.js';
 
-const params = {
-  cellCount: 18, growth: 90, pulse: 0.4, rings: 4, softness: 0.5, spread: 1, seed: 3, speed: 0.4,
-  paletteCount: 3, c0: '#0a3d62', c1: '#3c6382', c2: '#82ccdd', background: '#0a0e17',
-  margin: 0.08, showGrid: true, accent: '#e8e8e8', label: 'BIOM / GROWTH',
+const { sin, cos, round, min, max, abs, PI, sign } = Math;
+const TWO_PI = PI * 2;
+const HALF_PI = PI / 2;
+const map = (v, a, b, c, d) => c + (d - c) * ((v - a) / (b - a));
+const radians = (deg) => (deg * PI) / 180;
+
+/////////////////////////////////////////////////////////////////////////////
+// State — shaped like the reference so preset objects deep-merge cleanly.
+// Colours are { r, g, b } (0..255), matching the engine maths + Tweakpane's
+// auto-detected RGB color input.
+/////////////////////////////////////////////////////////////////////////////
+const cnv = { animation: true, frame: 0 };
+const form = {
+  seed: 720,
+  type: 'ellipse',
+  rotation: 0,
+  amount: { live: 25, max: 200 },
+  size: { level: 40, random: 0, start: 1, end: 0 },
+  bg: { type: 'form-static', r: 255, g: 255, b: 255 },
 };
+const palette = {
+  animation: 2,
+  phase: 0,
+  layers: { total: 16, max: 25, mult: 7 },
+  lightness: 0,
+  gradient: 10,
+  color: { r: 255, g: 0, b: 0 },
+  offset: { bg: 0, x: 0, y: 0, z: 0 },
+};
+const area = {
+  speed: 2, phase: 0, radius: 50, constraint: 0, rotation: 0,
+  space: { x: 0, y: 0 },
+};
+const clipping = { type: 'none', rotation: 0, width: 1, height: 1 };
+const rec = { frameRate: 60, length: { value: 10, min: 1, max: 60 } };
+const DEFAULTS = structuredClone({ cnv, form, palette, area, clipping });
 
-function mulberry32(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-function hexRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
-function colorsArr() { return [params.c0, params.c1, params.c2].slice(0, Math.max(2, params.paletteCount)); }
-function gradient(cs, t) { t = Math.max(0, Math.min(1, t)); const pos = t * (cs.length - 1), k = Math.min(Math.floor(pos), cs.length - 2); return interpolateHex(cs[k], cs[Math.min(k + 1, cs.length - 1)], pos - k); }
+const TYPE_OPTS = { Ellipse: 'ellipse', Rectangle: 'rectangle', Triangle: 'triangle' };
+const CLIP_OPTS = { None: 'none', Ellipse: 'ellipse', Rectangle: 'rectangle', Triangle: 'triangle' };
+const BG_OPTS = { 'Custom Color': 'custom', 'Form-Based Static': 'form-static', 'Form-Based Animated': 'form-animated' };
 
-const tool = createTool({ name: 'BIOM', version: '0.1' });
-let tt = 0;
+/////////////////////////////////////////////////////////////////////////////
+// Runtime
+/////////////////////////////////////////////////////////////////////////////
+let P = null, displayCanvas = null, pendingPreset = null;
+const GW = 760, GH = 760;
+const forms = [];
+let frame = 0;
+const fd = {};
+
+function makeForm() {
+  // call order matches the reference Form() so a given seed reproduces it
+  return {
+    xoff: { x: P.random(-PI, PI), y: P.random(-PI, PI) },
+    yoff: { x: P.random(-PI, PI), y: P.random(-PI, PI) },
+    rotation: P.random(-HALF_PI, HALF_PI),
+    size: P.random(0.1, 2),
+    px: 0, py: 0,
+  };
+}
+function createForms() {
+  if (!P) return;
+  P.randomSeed(form.seed);
+  forms.length = 0;
+  for (let i = 0; i < form.amount.live; i++) forms.push(makeForm());
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Per-frame derived values (port of drawGraphics) + form orbit (port of coords)
+/////////////////////////////////////////////////////////////////////////////
+function computeFrameData() {
+  frame = cnv.frame / (rec.length.value * rec.frameRate);
+
+  const areaSpeed = area.speed === 0 ? 0 : min(area.speed, rec.length.value);
+  const colorSpeed = palette.animation === 0 ? 0 : min(abs(palette.animation), rec.length.value);
+  const speedSign = sign(palette.animation) < 0 ? -1 : 1;
+
+  fd.areaSpeed = round(areaSpeed);
+  fd.colorSpeed = round(colorSpeed) * speedSign;
+  fd.areaPhase = map(area.phase, 0, 1, 0, TWO_PI);
+  fd.colorPhase = map(palette.phase, 0, 1, 0, TWO_PI);
+  fd.radius = map(area.radius, 0, 100, 0, max(GW, GH) * 0.33);
+  fd.constraint = map(area.constraint, 0, 1, 1, 0);
+  fd.xSpace = area.space.x <= 0 ? map(area.space.x, 0, -1, 1, 0) : map(area.space.x, 0, 1, 1, 4);
+  fd.ySpace = area.space.y <= 0 ? map(area.space.y, 0, -1, 1, 0) : map(area.space.y, 0, 1, 1, 4);
+
+  const pTotal = palette.layers.total;
+  fd.layers = pTotal <= 14 ? pTotal * 3 : pTotal * palette.layers.mult;
+  fd.gradMult = min(palette.gradient, fd.layers);
+  fd.formSize = map(form.size.level, 0, 100, 0, min(GW, GH));
+}
+
+function orbit(f) {
+  const t = TWO_PI * frame * fd.areaSpeed + fd.areaPhase;
+  const xpos = sin(t + f.xoff.x) + cos(t + f.xoff.y);
+  const ypos = sin(t + f.yoff.y) + cos(t + f.yoff.x);
+  f.px = xpos * fd.radius * fd.constraint;
+  f.py = ypos * fd.radius;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Render (port of drawForms)
+/////////////////////////////////////////////////////////////////////////////
+function drawStamp(f, size, posx, posy) {
+  P.push();
+  P.translate(f.px * posx, f.py * posy);
+  const mult = map(form.size.random, 0, 1, 1, f.size);
+  if (form.type === 'ellipse') {
+    P.ellipse(0, 0, size * mult, size * mult);
+  } else if (form.type === 'rectangle') {
+    P.rotate(f.rotation * form.rotation);
+    P.rect(0, 0, size * mult, size * mult);
+  } else {
+    P.rotate(f.rotation * form.rotation);
+    P.triangle(0, (-size / 2) * mult, (size / 2) * mult, (size / 2) * mult, (-size / 2) * mult, (size / 2) * mult);
+  }
+  P.pop();
+}
+
+function drawForms() {
+  P.push();
+  P.translate(GW / 2, GH / 2);
+
+  if (clipping.type !== 'none') {
+    P.fill(0, 1);
+    P.rect(0, 0, GW, GH);
+    P.beginClip();
+    P.push();
+    P.rotate(radians(clipping.rotation));
+    P.scale(clipping.width, clipping.height);
+    if (clipping.type === 'ellipse') P.ellipse(0, 0, GW, GH);
+    else if (clipping.type === 'rectangle') P.rect(0, 0, GW, GH);
+    else P.triangle(0, -GH / 2, GW / 2, GH / 2, -GW / 2, GH / 2);
+    P.pop();
+    P.endClip();
+  }
+
+  P.rotate(radians(area.rotation));
+  for (const f of forms) orbit(f);
+
+  // Background
+  if (form.bg.type === 'custom') {
+    P.background(form.bg.r, form.bg.g, form.bg.b);
+  } else {
+    const frameColor = form.bg.type === 'form-static' ? 0 : frame;
+    const bgOffset = palette.offset.bg * TWO_PI;
+    const fs = TWO_PI * frameColor * fd.colorSpeed;
+    const r = sin(bgOffset + palette.offset.x * TWO_PI + fs);
+    const g = sin(bgOffset + palette.offset.y * TWO_PI + fs);
+    const b = sin(bgOffset + palette.offset.z * TWO_PI + fs);
+    P.background(
+      map(r, -1, 1, palette.lightness * 255, palette.color.r),
+      map(g, -1, 1, palette.lightness * 255, palette.color.g),
+      map(b, -1, 1, palette.lightness * 255, palette.color.b)
+    );
+  }
+
+  const startSize = map(form.size.start, 0, 1, 0, fd.formSize);
+  const endSize = map(form.size.end, 0, 1, 0, fd.formSize);
+  const L = fd.layers;
+
+  for (let i = 0; i < L; i++) {
+    const size = map(i, 0, L, startSize, endSize);
+    const gradCount = i / (L - 1);
+    const posx = map(i, 0, L, 1, fd.xSpace);
+    const posy = map(i, 0, L, 1, fd.ySpace);
+
+    const gradient = gradCount * fd.gradMult;
+    const fs = TWO_PI * frame * fd.colorSpeed + fd.colorPhase;
+    const r = map(sin(gradient + palette.offset.x * TWO_PI + fs), -1, 1, palette.lightness * 255, palette.color.r);
+    const g = map(sin(gradient + palette.offset.y * TWO_PI + fs), -1, 1, palette.lightness * 255, palette.color.g);
+    const b = map(sin(gradient + palette.offset.z * TWO_PI + fs), -1, 1, palette.lightness * 255, palette.color.b);
+    P.fill(r, g, b);
+
+    for (const f of forms) drawStamp(f, size, posx, posy);
+  }
+  P.pop();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Sketch
+/////////////////////////////////////////////////////////////////////////////
+const tool = createTool({ name: 'BIOM', version: '0.2' });
+
+function fitCanvas() {
+  if (!displayCanvas) return;
+  const pad = 40;
+  const k = min((window.innerWidth - pad * 2) / GW, (window.innerHeight - pad * 2) / GH);
+  displayCanvas.elt.style.width = `${GW * k}px`;
+  displayCanvas.elt.style.height = `${GH * k}px`;
+}
 
 tool.startSketch((p) => {
-  p.setup = () => { p.createCanvas(p.windowWidth, p.windowHeight); p.pixelDensity(1); };
-  p.windowResized = () => p.resizeCanvas(p.windowWidth, p.windowHeight);
-  p.draw = () => {
-    tt += p.deltaTime / 1000 * params.speed;
-    const W = p.width, H = p.height, ctx = p.drawingContext;
-    const [br, bg, bb] = hexRgb(params.background);
-    p.background(br, bg, bb);
-    const M = Math.min(W, H) * params.margin;
-    const fx = M, fy = M, fw = W - 2 * M, fh = H - 2 * M;
-    const cs = colorsArr();
-
-    ctx.save();
-    ctx.beginPath(); ctx.rect(fx, fy, fw, fh); ctx.clip();
-
-    if (params.showGrid) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
-      const step = fw / 12;
-      for (let x = fx; x <= fx + fw + 1; x += step) { ctx.beginPath(); ctx.moveTo(x, fy); ctx.lineTo(x, fy + fh); ctx.stroke(); }
-      for (let y = fy; y <= fy + fh + 1; y += step) { ctx.beginPath(); ctx.moveTo(fx, y); ctx.lineTo(fx + fw, y); ctx.stroke(); }
-    }
-
-    const rnd = mulberry32(params.seed >>> 0);
-    const cells = [];
-    for (let i = 0; i < params.cellCount; i++) cells.push({ x: fx + rnd() * fw, y: fy + rnd() * fh, base: 0.4 + 0.6 * rnd(), phase: rnd() * 6.28, ct: i / Math.max(1, params.cellCount - 1) });
-
-    ctx.globalCompositeOperation = 'lighter';
-    for (const c of cells) {
-      const r = Math.max(4, params.growth * c.base * (1 + params.pulse * Math.sin(tt * 2 + c.phase)));
-      const [cr, cg, cb] = hexRgb(gradient(cs, c.ct));
-      const g = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
-      g.addColorStop(0, `rgba(${cr},${cg},${cb},${params.softness})`);
-      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'source-over';
-    for (const c of cells) {
-      const r = Math.max(4, params.growth * c.base * (1 + params.pulse * Math.sin(tt * 2 + c.phase)));
-      const [cr, cg, cb] = hexRgb(gradient(cs, c.ct));
-      ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.45)`; ctx.lineWidth = 1;
-      for (let k = 1; k <= params.rings; k++) {
-        const rr = r * (k / params.rings) * (0.6 + 0.4 * Math.sin(tt + c.phase + k));
-        if (rr < 1) continue;
-        ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, Math.PI * 2); ctx.stroke();
-      }
-    }
-    ctx.restore();
-
-    // Swiss frame
-    ctx.strokeStyle = params.accent; ctx.lineWidth = 1.5; ctx.strokeRect(fx, fy, fw, fh);
-    ctx.beginPath(); ctx.moveTo(fx, fy + M * 0.9); ctx.lineTo(fx + fw * 0.42, fy + M * 0.9); ctx.stroke();
-    p.noStroke(); p.fill(params.accent);
-    p.textFont('monospace'); p.textSize(Math.max(10, M * 0.28)); p.textAlign(p.LEFT, p.BASELINE);
-    p.text(params.label, fx, fy + M * 0.62);
-    p.textAlign(p.RIGHT, p.BASELINE); p.text('No. ' + String(params.seed).padStart(3, '0'), fx + fw, fy + M * 0.62);
+  p.setup = () => {
+    P = p;
+    tool.canvasHost.style.display = 'flex';
+    tool.canvasHost.style.alignItems = 'center';
+    tool.canvasHost.style.justifyContent = 'center';
+    displayCanvas = p.createCanvas(GW, GH);
+    p.pixelDensity(2);
+    displayCanvas.elt.style.display = 'block';
+    p.rectMode(p.CENTER);
+    p.noStroke();
+    p.imageMode(p.CENTER);
+    fitCanvas();
+    createForms();
   };
+  p.draw = () => {
+    if (pendingPreset !== null) { const n = pendingPreset; pendingPreset = null; applyPreset(n); return; }
+    if (!P) return;
+    p.clear();
+    computeFrameData();
+    drawForms();
+    if (cnv.animation) frame >= 1 ? (cnv.frame = 0) : cnv.frame++;
+  };
+  p.windowResized = () => fitCanvas();
 });
 
-// ---- UI ----
+/////////////////////////////////////////////////////////////////////////////
+// UI
+/////////////////////////////////////////////////////////////////////////////
 const main = tool.pages.main;
-const fCells = main.addFolder({ title: 'Cells' });
-fCells.addBinding(params, 'cellCount', { label: 'count', min: 1, max: 60, step: 1 });
-fCells.addBinding(params, 'growth', { min: 10, max: 260, step: 2 });
-fCells.addBinding(params, 'pulse', { min: 0, max: 1, step: 0.02 });
-fCells.addBinding(params, 'rings', { min: 0, max: 10, step: 1 });
-fCells.addBinding(params, 'softness', { min: 0.05, max: 1, step: 0.05 });
-fCells.addBinding(params, 'seed', { min: 0, max: 999, step: 1 });
-fCells.addBinding(params, 'speed', { min: 0, max: 2, step: 0.05 });
+const onForms = () => { if (P) createForms(); };
 
-const fColor = main.addFolder({ title: 'Color' });
-fColor.addBinding(params, 'paletteCount', { label: 'colors', min: 2, max: 3, step: 1 });
-fColor.addBinding(params, 'c0', { label: 'color 1', view: 'color' });
-fColor.addBinding(params, 'c1', { label: 'color 2', view: 'color' });
-fColor.addBinding(params, 'c2', { label: 'color 3', view: 'color' });
-fColor.addBinding(params, 'background', { view: 'color' });
+main.addButton({ title: 'Restart Preset' }).on('click', () => applyPreset(presetState.name));
 
-const fPoster = main.addFolder({ title: 'Poster' });
-fPoster.addBinding(params, 'margin', { min: 0.02, max: 0.18, step: 0.01 });
-fPoster.addBinding(params, 'showGrid', { label: 'grid' });
-fPoster.addBinding(params, 'accent', { view: 'color' });
-fPoster.addBinding(params, 'label');
+const fForm = main.addFolder({ title: 'FORMS' });
+fForm.addBinding(form, 'type', { label: 'Shape', options: TYPE_OPTS }).on('change', formUI);
+fForm.addBinding(form.amount, 'live', { label: 'Amount', min: 1, max: form.amount.max, step: 1 }).on('change', onForms);
+const fRot = fForm.addBinding(form, 'rotation', { label: 'Random Angle', min: 0, max: 1, step: 0.01 });
+fForm.addBinding(form.size, 'level', { label: 'Form Size', min: 1, max: 100, step: 1 });
+fForm.addBinding(form.size, 'random', { label: 'Random Size', min: 0, max: 1, step: 0.01 });
+fForm.addBinding(form.size, 'start', { label: 'Start Size', min: 0.01, max: 1, step: 0.01 });
+fForm.addBinding(form.size, 'end', { label: 'End Size', min: 0.01, max: 1, step: 0.01 });
 
+const fArea = main.addFolder({ title: 'AREA' });
+const aRadius = fArea.addBinding(area, 'radius', { label: 'Radius', min: 0, max: 100, step: 1 }).on('change', areaUI);
+fArea.addBinding(area, 'rotation', { label: 'Rotation', min: 0, max: 360, step: 5 });
+const aSpeed = fArea.addBinding(area, 'speed', { label: 'Motion Period', min: 0, max: 25, step: 1 }).on('change', () => { cnv.frame = 0; areaPhaseUI(); });
+const aPhase = fArea.addBinding(area, 'phase', { label: 'Start Phase', min: 0, max: 1, step: 0.01 });
+const aConstr = fArea.addBinding(area, 'constraint', { label: 'Constraint', min: 0, max: 1, step: 0.01 });
+const aSpaceX = fArea.addBinding(area.space, 'x', { label: 'Spacing X', min: -1, max: 1, step: 0.01 });
+const aSpaceY = fArea.addBinding(area.space, 'y', { label: 'Spacing Y', min: -1, max: 1, step: 0.01 });
+
+const fColor = main.addFolder({ title: 'COLORS' });
+const cAnim = fColor.addBinding(palette, 'animation', { label: 'Animation Period', min: -25, max: 25, step: 1 }).on('change', () => { cnv.frame = 0; palettePhaseUI(); });
+const cPhase = fColor.addBinding(palette, 'phase', { label: 'Start Phase', min: 0, max: 1, step: 0.01 });
+fColor.addBinding(palette.layers, 'total', { label: 'Gradient Layers', min: 1, max: palette.layers.max, step: 1 });
+fColor.addBinding(palette, 'gradient', { label: 'Gradient Mult', min: 1, max: 100, step: 0.1 });
+fColor.addBinding(palette, 'lightness', { label: 'Light Point', min: 0, max: 1, step: 0.01 });
+fColor.addBinding(palette, 'color', { label: 'Base Color' });
+fColor.addBinding(palette.offset, 'x', { label: 'Offset R', min: 0, max: 1, step: 0.01 });
+fColor.addBinding(palette.offset, 'y', { label: 'Offset G', min: 0, max: 1, step: 0.01 });
+fColor.addBinding(palette.offset, 'z', { label: 'Offset B', min: 0, max: 1, step: 0.01 });
+fColor.addBinding(form.bg, 'type', { label: 'Background', options: BG_OPTS }).on('change', bgUI);
+const cBgOff = fColor.addBinding(palette.offset, 'bg', { label: 'Phase Offset', min: 0, max: 1, step: 0.01 });
+const cBgCol = fColor.addBinding(form, 'bg', { label: 'Back Color' });
+
+const fClip = main.addFolder({ title: 'CLIPPING', expanded: false });
+fClip.addBinding(clipping, 'type', { label: 'Clip Shape', options: CLIP_OPTS }).on('change', clipUI);
+const clipW = fClip.addBinding(clipping, 'width', { label: 'Clip Width', min: 0.25, max: 1, step: 0.01 });
+const clipH = fClip.addBinding(clipping, 'height', { label: 'Clip Height', min: 0.25, max: 1, step: 0.01 });
+const clipR = fClip.addBinding(clipping, 'rotation', { label: 'Clip Rotation', min: 0, max: 360, step: 5 });
+
+const fSeed = main.addFolder({ title: 'SEED', expanded: false });
+fSeed.addBinding(form, 'seed', { label: 'Seed', min: 1, max: 10000, step: 1 }).on('change', onForms);
+fSeed.addButton({ title: 'New Seed' }).on('click', () => { form.seed = Math.floor(Math.random() * 10000); createForms(); tool.pane.refresh(); });
+
+// Note: form.bg holds { type, r, g, b }; Tweakpane binds the whole object, so the
+// 'Back Color' picker shows alongside 'type' but only the r/g/b are read for the
+// custom background. This mirrors the reference's single bg object.
+function formUI() { fRot.disabled = form.type === 'ellipse'; }
+function bgUI() {
+  const custom = form.bg.type === 'custom';
+  cBgCol.disabled = !custom;
+  cBgOff.disabled = custom;
+}
+function areaUI() {
+  const off = area.radius === 0;
+  aSpeed.disabled = off; aConstr.disabled = off; aSpaceX.disabled = off; aSpaceY.disabled = off;
+  areaPhaseUI();
+}
+function areaPhaseUI() { aPhase.disabled = !(area.radius !== 0 && area.speed === 0); }
+function palettePhaseUI() { cPhase.disabled = palette.animation !== 0; }
+function clipUI() {
+  const none = clipping.type === 'none';
+  clipW.disabled = none; clipH.disabled = none; clipR.disabled = none;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Presets (original names + palettes; numeric configs studied from the source)
+/////////////////////////////////////////////////////////////////////////////
+const presets = {
+  'Crimson Cell': {
+    form: { seed: 720, type: 'ellipse', rotation: 0, amount: { live: 25 }, size: { level: 25, random: 0, start: 1, end: 0.01 }, bg: { type: 'form-static', r: 255, g: 255, b: 255 } },
+    palette: { animation: 5, phase: 0, layers: { total: 16 }, lightness: 0, gradient: 10, color: { r: 255, g: 0, b: 0 }, offset: { bg: 0.25, x: 0, y: 0, z: 0 } },
+    area: { speed: 1, phase: 0, radius: 50, constraint: 0, rotation: 0, space: { x: 0, y: 0 } },
+    clipping: { type: 'ellipse', rotation: 0, width: 1, height: 1 },
+  },
+  'Magenta Bloom': {
+    form: { seed: 3790, type: 'rectangle', rotation: 0, amount: { live: 18 }, size: { level: 26, random: 0.34, start: 1, end: 0 }, bg: { type: 'form-static', r: 255, g: 161, b: 255 } },
+    palette: { animation: -5, phase: 0, layers: { total: 17 }, lightness: 1, gradient: 100, color: { r: 166, g: 72, b: 0 }, offset: { bg: 0.1, x: 0.47, y: 0.16, z: 0.09 } },
+    area: { speed: 1, phase: 0, radius: 37, constraint: 0.55, rotation: 0, space: { x: 0, y: 0 } },
+    clipping: { type: 'ellipse', rotation: 90, width: 1, height: 0.75 },
+  },
+  'Cobalt Swarm': {
+    form: { seed: 8497, type: 'ellipse', rotation: 0.6, amount: { live: 75 }, size: { level: 25, random: 0, start: 1, end: 0.01 }, bg: { type: 'form-static', r: 0, g: 0, b: 0 } },
+    palette: { animation: -20, phase: 0.26, layers: { total: 14 }, lightness: 0, gradient: 24, color: { r: 0, g: 11, b: 255 }, offset: { bg: 0.25, x: 0, y: 0, z: 0.5 } },
+    area: { speed: 3, phase: 0, radius: 40, constraint: 0, rotation: 0, space: { x: -1, y: -1 } },
+    clipping: { type: 'ellipse', rotation: 0, width: 1, height: 1 },
+  },
+  'Rose Vortex': {
+    form: { seed: 2569, type: 'ellipse', rotation: 0, amount: { live: 32 }, size: { level: 26, random: 0, start: 1, end: 0.01 }, bg: { type: 'form-static', r: 255, g: 255, b: 255 } },
+    palette: { animation: -25, phase: 0, layers: { total: 15 }, lightness: 0.23, gradient: 79, color: { r: 207, g: 0, b: 80 }, offset: { bg: 0.55, x: 0.72, y: 0.28, z: 0 } },
+    area: { speed: 1, phase: 0, radius: 65, constraint: 0, rotation: 145, space: { x: 0, y: 0 } },
+    clipping: { type: 'none', rotation: 90, width: 0.96, height: 1 },
+  },
+  'Solar Eye': {
+    form: { seed: 2751, type: 'ellipse', rotation: 0, amount: { live: 1 }, size: { level: 100, random: 0, start: 1, end: 0.01 }, bg: { type: 'form-animated', r: 210, g: 210, b: 210 } },
+    palette: { animation: 3, phase: 0, layers: { total: 4 }, lightness: 0.4, gradient: 4, color: { r: 185, g: 22, b: 22 }, offset: { bg: 0.95, x: 0, y: 0.37, z: 0 } },
+    area: { speed: 3, phase: 0, radius: 26, constraint: 0.22, rotation: 0, space: { x: 0, y: -0.55 } },
+    clipping: { type: 'ellipse', rotation: 0, width: 1, height: 1 },
+  },
+  'Static Drift': {
+    form: { seed: 754, type: 'rectangle', rotation: 0, amount: { live: 24 }, size: { level: 25, random: 1, start: 1, end: 0 }, bg: { type: 'form-animated', r: 255, g: 255, b: 255 } },
+    palette: { animation: 2, phase: 0, layers: { total: 23 }, lightness: 0.27, gradient: 3, color: { r: 242, g: 128, b: 219 }, offset: { bg: 0.12, x: 0, y: 0.92, z: 0.73 } },
+    area: { speed: 1, phase: 0, radius: 36, constraint: 0, rotation: 0, space: { x: 0, y: 1 } },
+    clipping: { type: 'rectangle', rotation: 0, width: 0.96, height: 1 },
+  },
+};
+
+function deepMerge(dst, src) {
+  for (const k of Object.keys(src)) {
+    if (src[k] && typeof src[k] === 'object' && !Array.isArray(src[k])) { dst[k] = dst[k] || {}; deepMerge(dst[k], src[k]); }
+    else dst[k] = src[k];
+  }
+}
+function resetToDefaults() {
+  deepMerge(cnv, structuredClone(DEFAULTS.cnv));
+  deepMerge(form, structuredClone(DEFAULTS.form));
+  deepMerge(palette, structuredClone(DEFAULTS.palette));
+  deepMerge(area, structuredClone(DEFAULTS.area));
+  deepMerge(clipping, structuredClone(DEFAULTS.clipping));
+}
+function applyPreset(name) {
+  const pr = typeof name === 'string' ? presets[name] : name;
+  if (!pr) return;
+  resetToDefaults();
+  for (const key of ['cnv', 'form', 'palette', 'area', 'clipping']) if (pr[key]) deepMerge({ cnv, form, palette, area, clipping }[key], pr[key]);
+  cnv.frame = 0;
+  createForms();
+  formUI(); bgUI(); areaUI(); palettePhaseUI(); clipUI();
+  tool.pane.refresh();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Export + OPTIONS + dev hook
+/////////////////////////////////////////////////////////////////////////////
 attachExport(tool.pages.export, { getCanvas: tool.getCanvas, name: 'biom' });
 
-const presets = {
-  Tide: { cellCount: 18, growth: 90, pulse: 0.4, rings: 4, c0: '#0a3d62', c1: '#3c6382', c2: '#82ccdd', background: '#0a0e17', accent: '#e8e8e8' },
-  Spore: { cellCount: 30, growth: 70, pulse: 0.6, rings: 2, softness: 0.4, c0: '#1b4332', c1: '#40916c', c2: '#b7e4c7', background: '#06120c', accent: '#d8f3dc' },
-  Ember: { cellCount: 14, growth: 130, pulse: 0.5, rings: 5, softness: 0.55, c0: '#3a0ca3', c1: '#e63946', c2: '#fcbf49', background: '#0c0410', accent: '#ffe8d6' },
-  Reef: { cellCount: 26, growth: 80, pulse: 0.5, rings: 3, softness: 0.45, c0: '#03452c', c1: '#1b998b', c2: '#a8e6cf', background: '#04140e', accent: '#e8fff5', label: 'BIOM / REEF' },
-  Nucleus: { cellCount: 8, growth: 180, pulse: 0.4, rings: 6, softness: 0.5, c0: '#1a1a40', c1: '#4d4dff', c2: '#b8b8ff', background: '#06060f', accent: '#eaeaff', label: 'BIOM / NUCLEUS' },
-  Coral: { cellCount: 20, growth: 100, pulse: 0.7, rings: 4, softness: 0.5, c0: '#5c0a2e', c1: '#e63946', c2: '#ffd6a5', background: '#0e0408', accent: '#ffe8d6', label: 'BIOM / CORAL' },
-  Frost: { cellCount: 16, growth: 110, pulse: 0.3, rings: 2, softness: 0.4, c0: '#2c3e50', c1: '#7f9cb3', c2: '#eaf2f8', background: '#0a0f14', accent: '#ffffff', label: 'BIOM / FROST' },
-  Bloom: { cellCount: 34, growth: 70, pulse: 0.6, rings: 3, softness: 0.5, speed: 0.6, c0: '#3a0ca3', c1: '#c8408f', c2: '#ffcad4', background: '#0a0410', accent: '#ffe5ec', label: 'BIOM / BLOOM' },
-  Mono: { cellCount: 18, growth: 120, pulse: 0.45, rings: 4, softness: 0.5, c0: '#1c1c1c', c1: '#777777', c2: '#e0e0e0', background: '#0d0d0d', accent: '#f5f5f5', label: 'BIOM / MONO' },
-};
-function randomize(p) {
-  p.cellCount = 6 + (Math.random() * 50 | 0);
-  p.growth = 40 + Math.random() * 200; p.pulse = Math.random(); p.rings = Math.random() * 8 | 0;
-  p.softness = 0.2 + Math.random() * 0.7; p.seed = Math.random() * 999 | 0;
-  const h = Math.random() * 360;
-  p.c0 = `#${hsl(h, 55, 25)}`; p.c1 = `#${hsl((h + 40) % 360, 55, 50)}`; p.c2 = `#${hsl((h + 80) % 360, 65, 78)}`;
+const presetState = { name: 'Crimson Cell' };
+const opts = tool.pages.options;
+opts.addBinding(presetState, 'name', { label: 'Preset', options: Object.fromEntries(Object.keys(presets).map((k) => [k, k])) }).on('change', (ev) => applyPreset(ev.value));
+opts.addButton({ title: 'Apply / Restart Preset' }).on('click', () => applyPreset(presetState.name));
+opts.addButton({ title: 'Randomize' }).on('click', randomize);
+opts.addBinding(cnv, 'animation', { label: 'Animate' }).on('change', () => { cnv.frame = 0; });
+opts.addBinding(rec.length, 'value', { label: 'Loop Length', min: rec.length.min, max: rec.length.max, step: 1 });
+opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
+
+/////////////////////////////////////////////////////////////////////////////
+// Randomizer (port of randomParams; poster/branding fields omitted)
+/////////////////////////////////////////////////////////////////////////////
+function randomize() {
+  const R = (a, b) => (b === undefined ? Math.random() * a : a + Math.random() * (b - a));
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  form.seed = Math.floor(Math.random() * 10000);
+  form.type = R(1) <= 0.5 ? (R(1) <= 0.5 ? 'ellipse' : 'rectangle') : pick(['ellipse', 'rectangle', 'triangle']);
+  form.rotation = R(1) <= 0.75 ? 0 : R(1);
+  form.amount.live = round(R(1) <= 0.75 ? R(2, form.amount.max / 2) : R(form.amount.max));
+  form.size.level = round(R(1) <= 0.75 ? R(10, 75) : R(5, 100));
+  form.size.random = R(1) <= 0.5 ? 0 : R(1);
+  form.size.start = R(1) <= 0.5 ? 1 : R(0.2, 1);
+  form.size.end = R(1) <= 0.75 ? 0 : R(1) <= 0.75 ? R(form.size.start) : R(1);
+  form.bg.type = pick(['custom', 'form-static', 'form-animated']);
+  if (form.bg.type === 'custom') {
+    form.bg.r = R(1) <= 0.5 ? (R(1) <= 0.5 ? 255 : 0) : R(255);
+    form.bg.g = R(1) <= 0.5 ? (R(1) <= 0.5 ? 255 : 0) : R(255);
+    form.bg.b = R(1) <= 0.5 ? (R(1) <= 0.5 ? 255 : 0) : R(255);
+    palette.offset.bg = 0;
+  } else {
+    palette.offset.bg = R(1) <= 0.5 ? 0 : R(1);
+  }
+  palette.animation = round(R(1) <= 0.66 ? R(-3, 3) : R(-25, 25));
+  palette.layers.total = round(R(1) <= 0.75 ? R(palette.layers.max * 0.25, palette.layers.max * 0.8) : R(palette.layers.max));
+  palette.lightness = R(1) <= 0.5 ? (R(1) <= 0.5 ? 0 : 1) : R(1);
+  palette.gradient = R(100);
+  palette.color.r = R(255); palette.color.g = R(255); palette.color.b = R(255);
+  palette.offset.x = R(1) <= 0.5 ? 0 : R(1);
+  palette.offset.y = R(1) <= 0.5 ? 0 : R(1);
+  palette.offset.z = R(1) <= 0.5 ? 0 : R(1);
+  area.speed = round(R(25));
+  area.radius = round(R(1) <= 0.5 ? R(50, 100) : R(100));
+  area.constraint = R(1) <= 0.66 ? 0 : R(1);
+  area.space.x = R(1) <= 0.5 ? 0 : R(1) <= 0.5 ? (R(1) <= 0.5 ? -1 : 1) : R(-1, 1);
+  area.space.y = R(1) <= 0.5 ? 0 : R(1) <= 0.5 ? (R(1) <= 0.5 ? -1 : 1) : R(-1, 1);
+  clipping.type = R(1) <= 0.75 ? 'none' : pick(['none', 'ellipse', 'rectangle', 'triangle']);
+  if (clipping.type !== 'none') {
+    clipping.rotation = R(1) <= 0.75 ? 0 : R(360);
+    clipping.width = clipping.height = R(1) <= 0.75 ? 1 : R(0.5, 1);
+  }
+  cnv.frame = 0;
+  createForms();
+  formUI(); bgUI(); areaUI(); palettePhaseUI(); clipUI();
+  tool.pane.refresh();
 }
-function hsl(h, s, l) { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l); const f = (n) => { const k = (n + h / 30) % 12; const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, '0'); }; return `${f(0)}${f(8)}${f(4)}`; }
-attachPresets(tool.pages.options, { pane: tool.pane, params, presets, randomize });
+
+window.addEventListener('resize', fitCanvas);
+window.__biom = { applyPreset, randomize, cnv, form, palette, area, clipping, rec, presets, setFrame: (f) => { cnv.frame = f; } };
+
+formUI(); bgUI(); areaUI(); palettePhaseUI(); clipUI();
+pendingPreset = 'Crimson Cell';
