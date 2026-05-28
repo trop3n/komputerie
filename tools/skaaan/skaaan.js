@@ -15,7 +15,7 @@
 // The map2 easings (Linear / Quadratic / Cubic / Quartic / Quintic / Sinusoidal
 // / Exponential / Circular / Sqrt × IN / OUT / BOTH) are ported as-is — these
 // are standard easing curves (Penner / sighack), kept with attribution.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { createNoise2D } from '../../js/vendor/simplex/simplex-noise.js';
 import { alea } from '../../js/antlii/noise.js';
@@ -712,11 +712,11 @@ opts.addButton({ title: 'Clear Result (C)' }).on('click', () => { if (gResult) g
 opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
 
 window.addEventListener('resize', fitCanvas);
-window.__skaaan = {
+exposeDebug('skaaan', {
   params, shift, scaling, rotation, scan, maap, grain, presets,
   toggleScan, resetScan, applyPreset, loadImageAsSource, makeDefaultImage,
   get img() { return imgSource; }, get scanning() { return scan.action; },
-};
+});
 
 refreshAnimUI();
 // Auto-apply a starter preset once the engine is ready

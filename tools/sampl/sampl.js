@@ -13,7 +13,7 @@
 // that's run synchronously on the shared Paper.js scope. Live render = 2D canvas
 // `ctx.fill(Path2D)`; SVG export = Paper.js reconstruction of the same field.
 // Original code, preset names and palettes.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { alea } from '../../js/antlii/noise.js';
 import { createNoise3D } from '../../js/vendor/simplex/simplex-noise.js';
@@ -970,7 +970,7 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', fitCanvas);
 // Dev hook — drive presets / inspect state / feed live antlii presets for A/B.
-window.__sampl = { applyPreset, regenerate, renderSVG, updateFrameObjectData, cnv, params, sample, palette, get textObject() { return textObject; }, get F() { return F; }, presets, setFrame: (f) => { cnv.frame = f; } };
+exposeDebug('sampl', { applyPreset, regenerate, renderSVG, updateFrameObjectData, cnv, params, sample, palette, get textObject() { return textObject; }, get F() { return F; }, presets, setFrame: (f) => { cnv.frame = f; } });
 
 bgUI(); fillUI();
 pendingPreset = 'Sequence Bloom';

@@ -13,7 +13,7 @@
 // Gustavson CMYK halftone, humanbydefinition ASCII — all MIT / public domain).
 // Original code, preset names, palettes, fonts; 3D primitives replace antlii's
 // OBJ letter models and procedural noise replaces their blue-noise PNGs.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { alea } from '../../js/antlii/noise.js';
 
@@ -794,10 +794,10 @@ opts.addBinding(rec.length, 'value', { label: 'Loop Length', min: rec.length.min
 opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
 
 window.addEventListener('resize', fitCanvas);
-window.__dithr = {
+exposeDebug('dithr', {
   applyPreset, applyPalette, cnv, obj, motion, ascii, dither, gradient, rec, presets,
   setFrame: (f) => { cnv.frame = f; }, get userImage() { return userImage; },
-};
+});
 
 cnv.source = 'object';
 sourceUI(); ditherUI(); colorUI();

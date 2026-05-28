@@ -12,7 +12,7 @@
 // antlii.github.io/drift-tool source. Original code, preset names and the
 // procedurally-generated default image (antlii ships a stock photo + branding,
 // both omitted). The Form animation channels + edge-wrap are ported faithfully.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { createNoise2D } from '../../js/vendor/simplex/simplex-noise.js';
 import { alea } from '../../js/antlii/noise.js';
@@ -734,10 +734,10 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('resize', fitCanvas);
-window.__drift = {
+exposeDebug('drift', {
   applyPreset, randomize, spawnForm, clearAllForms, cnv, form, anim, presets,
   get formCount() { return form.array.length; }, get img() { return img; },
-};
+});
 
 frameUI(); refreshAnimUI();
 pendingPreset = 'Drift Field';

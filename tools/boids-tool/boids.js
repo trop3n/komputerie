@@ -12,7 +12,7 @@
 // The V2D vector class and the core flocking math are adapted from Daniel
 // Huang's MIT-licensed boids (https://github.com/cubeDhuang/boids), the same
 // basis the reference credits.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 
 /////////////////////////////////////////////////////////////////////////////
@@ -631,6 +631,6 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', fitCanvas);
 // Dev hook: drive presets / inspect state from the console while tuning fidelity.
-window.__boids = { applyPreset, restartSimulation, params, cnv, seed, g, get flock() { return flock; }, presets };
+exposeDebug('boids', { applyPreset, restartSimulation, params, cnv, seed, g, get flock() { return flock; }, presets });
 // Initial preset is applied on the first draw tick (see p.draw) so the whole
 // module — presets, UI, helpers — is initialized and the p5 instance is ready.

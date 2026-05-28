@@ -9,7 +9,7 @@
 // blur/brightness/contrast filters + a procedural grain overlay), which matches
 // its behaviour. Original code, preset names and palettes; procedural colour is
 // the public-domain Inigo Quilez cosine-palette formula the original also uses.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { seedNoise, noise2D, noise3D, alea } from '../../js/antlii/noise.js';
 import { interpolateHex, attachPaletteControls } from '../../js/antlii/palette.js';
@@ -815,7 +815,7 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', () => { if (isReady) updateCanvas(); });
 // Dev hook — drive presets / inspect state / feed live antlii presets for A/B.
-window.__bluur = { applyPreset, createForms, randomParams, cnv, form, post, palette, svg, presets, setFrame: (f) => { cnv.frame = f; } };
+exposeDebug('bluur', { applyPreset, createForms, randomParams, cnv, form, post, palette, svg, presets, setFrame: (f) => { cnv.frame = f; } });
 
 // Bootstrap the opening preset on the first draw tick (p5 setup may run sync or
 // async on the shell; defer so P/forms are initialised first — see BOIDS note).

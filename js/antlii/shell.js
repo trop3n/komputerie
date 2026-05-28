@@ -62,3 +62,16 @@ export function createTool({ name, version = '0.1', backHref = '../../' }) {
 
   return { root, pane, pages, canvasHost, startSketch, mountCanvas, getCanvas, toggleFullscreen };
 }
+
+// Dev hooks (window.__<name>) are useful for A/B-driving a tool against its
+// live antlii.work counterpart, but pollute the global namespace in production.
+// `exposeDebug(name, obj)` only attaches when the URL has `?debug` — so the
+// hook remains discoverable for power users (open /tools/flake/?debug) without
+// being visible by default.
+export const isDebug = () => {
+  try { return new URLSearchParams(location.search).has('debug'); }
+  catch { return false; }
+};
+export function exposeDebug(name, obj) {
+  if (isDebug()) window['__' + name] = obj;
+}

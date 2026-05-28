@@ -8,7 +8,7 @@
 // p5 + Path2D buffers; SVG export reconstructs the same formData with Paper.js
 // (the only faithful way to bake per-stamp transforms + XOR compound paths).
 // Original code, shape art, preset names and palettes.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { alea } from '../../js/antlii/noise.js';
 import { createNoise3D } from '../../js/vendor/simplex/simplex-noise.js';
@@ -725,7 +725,7 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', fitCanvas);
 // Dev hook: drive presets / inspect state from the console while tuning fidelity.
-window.__splitx = { applyPreset, renderSVG, importCustomSVG, cnv, form, split, palette, shape, presets, setFrame: (f) => { cnv.frame = f; } };
+exposeDebug('splitx', { applyPreset, renderSVG, importCustomSVG, cnv, form, split, palette, shape, presets, setFrame: (f) => { cnv.frame = f; } });
 
 colorUI();
 splitUI();

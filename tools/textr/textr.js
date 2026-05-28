@@ -11,7 +11,7 @@
 // opentype.js (our stack's font lib). Live render = p5 2D + `ctx.fill(Path2D)`;
 // SVG export = Paper.js reconstruction of the same arrangement. Original code,
 // preset names and palettes.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { alea } from '../../js/antlii/noise.js';
 import { createNoise2D, createNoise4D } from '../../js/vendor/simplex/simplex-noise.js';
@@ -509,7 +509,11 @@ tool.startSketch((p) => {
     ctx.clearRect(0, 0, displayCanvas.elt.width, displayCanvas.elt.height);
     ctx.restore();
     ctx.save();
-    ctx.scale(p.pixelDensity(), p.pixelDensity());
+    // p5 1.9.4 leaves a pixelDensity-scale transform on the 2D context between
+    // frames — set the transform absolutely instead of compounding (which would
+    // give us pd^2 and shove content off the bottom-right). Cf. SAMPL gotcha.
+    const pd = p.pixelDensity();
+    ctx.setTransform(pd, 0, 0, pd, 0, 0);
     if (cnv.bg.mode === 'fill') { ctx.fillStyle = cnv.bg.fill; ctx.fillRect(0, 0, GW, GH); }
     else drawChecker(ctx);
     if (FONT && formData.array) drawForms(ctx);
@@ -697,7 +701,7 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', fitCanvas);
 // Dev hook — drive presets / inspect state / feed live antlii presets for A/B.
-window.__textr = { applyPreset, generateForms, renderSVG, cnv, params, textr, presets, setFrame: (f) => { cnv.frame = f; } };
+exposeDebug('textr', { applyPreset, generateForms, renderSVG, cnv, params, textr, presets, setFrame: (f) => { cnv.frame = f; } });
 
 bgUI(); countUI();
 pendingPreset = 'Vertical Pulse';

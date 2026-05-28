@@ -7,7 +7,7 @@
 // Original code/shapes/presets; behaviour and parameter model studied from the
 // public antlii.github.io/flake-tool source. Math runs in a fixed render-space
 // (the ratio resolution) so parameter magnitudes match the reference.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { seedNoise, noise4D, alea } from '../../js/antlii/noise.js';
 import { buildLayers, toTransitionStops, paletteLerp, attachPaletteControls } from '../../js/antlii/palette.js';
@@ -727,5 +727,5 @@ opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscr
 
 window.addEventListener('resize', fitCanvas);
 // Dev hook: drive presets / inspect state from the console while tuning fidelity.
-window.__flake = { applyPreset, renderSVG, rasterizeMask, markData, importCustomSVG, params, cnv, pattern, mask, shape, palette, seed, presets };
+exposeDebug('flake', { applyPreset, renderSVG, rasterizeMask, markData, importCustomSVG, params, cnv, pattern, mask, shape, palette, seed, presets });
 applyPreset('Cobalt Bloom');

@@ -12,7 +12,7 @@
 // antlii.github.io/biom-tool source. Original code, preset names and palettes;
 // antlii's poster/branding layout, fonts and watermark are omitted (we render
 // the graphics field on its own).
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 
 const { sin, cos, round, min, max, abs, PI, sign } = Math;
@@ -432,7 +432,7 @@ function randomize() {
 }
 
 window.addEventListener('resize', fitCanvas);
-window.__biom = { applyPreset, randomize, cnv, form, palette, area, clipping, rec, presets, setFrame: (f) => { cnv.frame = f; } };
+exposeDebug('biom', { applyPreset, randomize, cnv, form, palette, area, clipping, rec, presets, setFrame: (f) => { cnv.frame = f; } });
 
 formUI(); bgUI(); areaUI(); palettePhaseUI(); clipUI();
 pendingPreset = 'Crimson Cell';

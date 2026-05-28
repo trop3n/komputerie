@@ -15,7 +15,7 @@
 // antlii.github.io/rastr-tool source. Native text is rendered through a FontFace
 // (matching the reference's family-string rendering); opentype.js supplies the
 // glyph outline for SVG export. Original code, preset names, palettes and fonts.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { seedNoise, noise3D, noise4D } from '../../js/antlii/noise.js';
 
@@ -790,10 +790,10 @@ opts.addBinding(rec.length, 'value', { label: 'Loop Length', min: rec.length.min
 opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
 
 window.addEventListener('resize', fitCanvas);
-window.__rastr = {
+exposeDebug('rastr', {
   applyPreset, regenerate: promptFunction, renderSVG, seedEvent, cnv, prompt, form, motion, rec, presets,
   get particles() { return particles; }, setFrame: (f) => { cnv.frame = f; },
-};
+});
 
 shapeUI(); fillUI(); strokeUI(); flowUI();
 pendingPreset = 'Isometric Drift';

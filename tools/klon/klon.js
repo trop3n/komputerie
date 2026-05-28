@@ -13,7 +13,7 @@
 // on image size), and the select/draw/erase mode tree, studied from the public
 // antlii.github.io/klon-tool source. Original code, default image; antlii's
 // stock photo, branding, watermark and license are omitted.
-import { createTool } from '../../js/antlii/shell.js';
+import { createTool, exposeDebug } from '../../js/antlii/shell.js';
 import { attachExport } from '../../js/antlii/export.js';
 import { createNoise2D } from '../../js/vendor/simplex/simplex-noise.js';
 import { alea } from '../../js/antlii/noise.js';
@@ -565,8 +565,8 @@ opts.addButton({ title: 'Reset Buffer (A)' }).on('click', () => { preview.select
 opts.addButton({ title: 'Fullscreen (f)' }).on('click', () => tool.toggleFullscreen());
 
 window.addEventListener('resize', fitCanvas);
-window.__klon = {
+exposeDebug('klon', {
   cnv, mode, grid, area, preview, form,
   loadImageAsSource, clearCanvas, undoCanvas, makeDefaultImage,
   get img() { return img; }, get hasArea() { return !!gArea; },
-};
+});
