@@ -177,18 +177,34 @@ const effects = {
     },
   },
   skaaan: {
+    // A horizontal scan-line sweeping across a colourful source, each column
+    // sampled from a vertically-noise-shifted copy → vertical streak displacement.
+    // SKAAAN's signature scan-line glitch.
     init() {
       const g = document.createElement('canvas'); g.width = W; g.height = H;
       const c = g.getContext('2d');
-      const gr = c.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#e94560'); gr.addColorStop(0.5, '#533483'); gr.addColorStop(1, '#0f3460');
+      const gr = c.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, '#ff5a3c'); gr.addColorStop(0.5, '#b13ad9'); gr.addColorStop(1, '#2b6bff');
       c.fillStyle = gr; c.fillRect(0, 0, W, H);
-      for (let i = 0; i < 6; i++) { c.fillStyle = `hsla(${Math.random() * 360},70%,60%,0.5)`; c.beginPath(); c.arc(Math.random() * W, Math.random() * H, 15 + Math.random() * 28, 0, 7); c.fill(); }
-      return { img: g };
+      // a few warm/cool blobs so streaks have variation
+      for (let i = 0; i < 8; i++) {
+        c.fillStyle = `hsla(${(i * 47) % 360},80%,60%,0.5)`;
+        c.beginPath(); c.arc((i * 31 + 11) % W, (i * 17 + 5) % H, 14 + (i * 7) % 22, 0, 7); c.fill();
+      }
+      return { src: g, scanX: 0 };
     },
     draw(ctx, f, s) {
-      ctx.drawImage(s.img, 0, 0);
-      const x = (f * 1.4) % W, y = (Math.sin(f * 0.04) * 0.4 + 0.5) * (H - 16);
-      ctx.drawImage(s.img, x, 0, 1, H, 0, y, W, 14);
+      // sweep a horizontal scan across, each column = a vertically-displaced
+      // slice of the source. After a full sweep, restart.
+      s.scanX = (s.scanX + 1) % (W + 1);
+      // every frame, advance and paint a noise-shifted slice
+      for (let i = 0; i < 2; i++) {
+        const x = (s.scanX + i) % W;
+        const dy = Math.sin(x * 0.08 + f * 0.05) * 18 + Math.sin(x * 0.21 - f * 0.03) * 10;
+        ctx.drawImage(s.src, x, 0, 1, H, x, dy, 1, H);
+      }
+      // show a faint scan-line indicator
+      ctx.fillStyle = 'rgba(255,30,30,0.4)'; ctx.fillRect(s.scanX, 0, 2, H);
     },
   },
   drift: {
