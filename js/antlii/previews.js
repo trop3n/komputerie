@@ -192,24 +192,50 @@ const effects = {
     },
   },
   drift: {
+    // Thin image-fragment slivers rotating in "layer" mode accumulate into a
+    // spinning fan — DRIFT's signature (sample a piece, let it drift & spin,
+    // trails build up).
     draw(ctx, f) {
-      ctx.fillStyle = 'rgba(6,7,13,0.16)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(8,9,15,0.06)'; ctx.fillRect(0, 0, W, H); // slow trail fade
       const cx = W / 2, cy = H / 2;
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 6; i++) {
-        const a = f * 0.03 + i;
-        ctx.save(); ctx.translate(cx + Math.cos(a) * (18 + i * 5), cy + Math.sin(a * 1.3) * (14 + i * 4)); ctx.rotate(a);
-        ctx.fillStyle = `hsla(${(280 + i * 15) % 360},70%,62%,0.5)`; ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+      for (let i = 0; i < 3; i++) {
+        const a = f * 0.04 * (1 + i * 0.2) + i * 2.1;
+        const hue = (a * 30 + i * 80) % 360;
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+        ctx.fillStyle = `hsla(${hue},75%,60%,0.55)`;
+        ctx.fillRect(0, -2.5, 52, 5); // a sampled sliver swung from the centre
+        ctx.restore();
       }
-      ctx.globalCompositeOperation = 'source-over';
     },
   },
   klon: {
+    // A grid-snapped clone-stamp drag: dotted grid background + a trail of
+    // ellipse/triangle/rect image-fragment stamps sweeping across, KLON's
+    // signature collage gesture.
     draw(ctx, f) {
-      ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
-      const cell = 12;
-      for (let y = 0; y < H; y += cell) for (let x = 0; x < W; x += cell) {
-        if (Math.hypot(x + cell / 2 - W / 2, y + cell / 2 - H / 2) < 46) { ctx.fillStyle = `hsl(${(x / W * 160 + 200 + f * 0.5) % 360},65%,58%)`; ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2); }
+      ctx.fillStyle = '#f1eee5'; ctx.fillRect(0, 0, W, H);
+      // grid dots
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let y = 4; y < H; y += 10) for (let x = 4; x < W; x += 10) ctx.fillRect(x, y, 1.2, 1.2);
+      // a sweeping trail — alternating shape masks coloured from a gradient
+      const cx = 20, cy = H / 2;
+      for (let i = 0; i < 14; i++) {
+        const t = (i + (f * 0.04) % 1) / 14;
+        const x = cx + t * (W - 40);
+        const y = cy + Math.sin(t * 7 + f * 0.04) * 18;
+        const hue = 200 + t * 160;
+        ctx.fillStyle = `hsla(${hue % 360},75%,55%,0.7)`;
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (i % 3 === 0) {
+          ctx.rect(x - 9, y - 9, 18, 18);
+        } else if (i % 3 === 1) {
+          ctx.moveTo(x - 9, y + 9); ctx.lineTo(x - 9, y - 9); ctx.lineTo(x + 9, y - 9); ctx.closePath();
+        } else {
+          ctx.ellipse(x, y, 9, 9, 0, 0, 7);
+        }
+        ctx.fill(); ctx.stroke();
       }
     },
   },
