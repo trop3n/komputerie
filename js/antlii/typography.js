@@ -17,15 +17,18 @@ export const FONT_OPTIONS = Object.fromEntries(Object.keys(FONTS).map((k) => [k,
 
 const cache = new Map();
 
-export async function loadFont(name) {
+export function loadFont(name) {
   if (cache.has(name)) return cache.get(name);
-  const url = FONTS[name];
-  if (!url) throw new Error('Unknown font: ' + name);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('font fetch failed: ' + res.status);
-  const font = window.opentype.parse(await res.arrayBuffer());
-  cache.set(name, font);
-  return font;
+  const p = (async () => {
+    const url = FONTS[name];
+    if (!url) throw new Error('Unknown font: ' + name);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('font fetch failed: ' + res.status);
+    return window.opentype.parse(await res.arrayBuffer());
+  })();
+  cache.set(name, p);
+  p.catch(() => cache.delete(name)); // drop the in-flight cache so a later call can retry
+  return p;
 }
 
 export function parseFont(arrayBuffer) {

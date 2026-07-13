@@ -320,7 +320,11 @@ const effects = {
   },
 };
 
+let _init = false;
 export function initPreviews() {
+  if (_init) return; // idempotent — a soft reload won't double up the loops
+  _init = true;
+  const steps = [];
   document.querySelectorAll('canvas[data-preview]').forEach((canvas) => {
     const fx = effects[canvas.dataset.preview];
     if (!fx) return;
@@ -329,6 +333,10 @@ export function initPreviews() {
     const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
     const state = fx.init ? fx.init() : null;
     let f = 0;
-    (function loop() { fx.draw(ctx, f, state); f++; requestAnimationFrame(loop); })();
+    steps.push(() => { fx.draw(ctx, f, state); f++; });
   });
+  let running = !document.hidden; // pause when the tab is backgrounded
+  const tick = () => { if (running) for (const s of steps) s(); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  document.addEventListener('visibilitychange', () => { running = !document.hidden; });
 }

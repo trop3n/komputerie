@@ -84,28 +84,34 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
   page.addBinding(fr, 'format', { options: { PNG: 'png', WebP: 'webp' } });
   const frBtn = page.addButton({ title: 'Export Frames (zip)' });
   const frStatus = page.addBinding(fr, 'status', { readonly: true, label: 'frames' });
-  let exporting = false;
+  let exporting = false, cancel = false;
   frBtn.on('click', async () => {
-    if (exporting) return;
+    if (exporting) { cancel = true; return; } // re-click cancels an in-progress export
     const canvas = getCanvas();
     if (!canvas) return;
-    exporting = true; fr.status = 'loading zip…'; frStatus.refresh();
+    exporting = true; cancel = false; fr.status = 'loading zip…'; frStatus.refresh();
+    frBtn.title = 'Cancel Export';
     try {
       const { default: JSZip } = await import('https://esm.sh/jszip@3.10.1');
       const zip = new JSZip();
       const type = fr.format === 'webp' ? 'image/webp' : 'image/png';
       for (let i = 0; i < fr.frames; i++) {
         await new Promise((r) => requestAnimationFrame(r));
+        if (cancel) break;
         const blob = await new Promise((res) => canvas.toBlob(res, type));
         if (blob) zip.file(`${name}_${String(i).padStart(4, '0')}.${fr.format}`, blob);
         fr.status = `${i + 1}/${fr.frames}`; frStatus.refresh();
       }
-      download(await zip.generateAsync({ type: 'blob' }), `${name}_frames.zip`);
-      fr.status = 'done'; frStatus.refresh();
+      if (cancel) {
+        fr.status = 'cancelled'; frStatus.refresh();
+      } else {
+        download(await zip.generateAsync({ type: 'blob' }), `${name}_frames.zip`);
+        fr.status = 'done'; frStatus.refresh();
+      }
     } catch (e) {
       console.error('frame export failed', e); fr.status = 'error'; frStatus.refresh();
     }
-    exporting = false;
+    exporting = false; cancel = false; frBtn.title = 'Export Frames (zip)';
   });
 }
 
@@ -154,9 +160,10 @@ async function transcodeToMp4(webmBlob, onState) {
 function download(blob, filename) {
   const a = document.createElement('a');
   a.download = filename;
-  a.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  a.href = url;
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => URL.revokeObjectURL(url), 1000); // defer — click() navigation isn't guaranteed synchronous
 }
 
 function upscale(src, scale) {

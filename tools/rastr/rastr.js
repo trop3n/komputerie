@@ -576,6 +576,7 @@ tool.startSketch((p) => {
 /////////////////////////////////////////////////////////////////////////////
 // Drag-drop — a font (.ttf/.otf/.woff) registers + becomes the prompt face
 /////////////////////////////////////////////////////////////////////////////
+let droppedFace = null;
 tool.canvasHost.addEventListener('dragover', (e) => e.preventDefault());
 tool.canvasHost.addEventListener('drop', (e) => {
   e.preventDefault();
@@ -583,17 +584,17 @@ tool.canvasHost.addEventListener('drop', (e) => {
   if (!file || !/\.(ttf|otf|woff)$/i.test(file.name)) return;
   const r = new FileReader();
   r.onload = () => {
-    try {
-      const buf = r.result;
-      const family = `rastr-drop-${Date.now()}`;
-      const face = new FontFace(family, buf.slice(0));
+    const buf = r.result;
+    const family = `rastr-drop-${Date.now()}`;
+    const face = new FontFace(family, buf.slice(0));
+    face.load().then(() => {
+      if (droppedFace) document.fonts.delete(droppedFace);
       document.fonts.add(face);
-      face.load().then(() => {
-        FONT = window.opentype.parse(buf);
-        promptFamily = family; if (form.char.use === 'inherit') charFamily = family;
-        promptFunction();
-      });
-    } catch (err) { console.error('font parse failed', err); }
+      droppedFace = face;
+      FONT = window.opentype.parse(buf);
+      promptFamily = family; if (form.char.use === 'inherit') charFamily = family;
+      promptFunction();
+    }).catch((err) => { console.error('dropped font load failed', err); });
   };
   r.readAsArrayBuffer(file);
 });

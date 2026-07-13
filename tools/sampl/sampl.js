@@ -778,8 +778,10 @@ tool.canvasHost.addEventListener('drop', (e) => {
     r.readAsArrayBuffer(file);
   } else if (/\.(png|jpe?g|webp|gif)$/i.test(file.name)) {
     const img = new Image();
-    img.onload = () => { userImage = img; sample.fill.type = 'image'; tool.pane.refresh(); fillUI(); updateFrameObjectData(); };
-    img.src = URL.createObjectURL(file);
+    const url = URL.createObjectURL(file);
+    img.onload = () => { userImage = img; sample.fill.type = 'image'; tool.pane.refresh(); fillUI(); updateFrameObjectData(); URL.revokeObjectURL(url); };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
   }
 });
 

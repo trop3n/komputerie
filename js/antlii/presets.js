@@ -38,9 +38,10 @@ export function attachPresets(page, { pane, params, presets = {}, onApply, rando
     const blob = new Blob([JSON.stringify(params, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.download = 'preset.json';
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
   page.addButton({ title: 'Import Preset (.json)' }).on('click', () => {
