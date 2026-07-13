@@ -107,7 +107,7 @@ const FLOW_LEVELS = ['Linear', 'Quadratic', 'Cubic', 'Quartic', 'Quintic', 'Expo
 
 // Our own open-source font set (FontFace + opentype). Heavy/geometric faces give
 // the densest raster coverage. Loaded from the Google Fonts mirror (CORS-open).
-const GF = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl';
+const GF = 'https://cdn.jsdelivr.net/gh/google/fonts@ec0464b978de222073645d6d3366f3fdf03376d8/ofl';
 const FONTS = {
   Anton: `${GF}/anton/Anton-Regular.ttf`,
   'Archivo Black': `${GF}/archivoblack/ArchivoBlack-Regular.ttf`,

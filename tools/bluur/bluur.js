@@ -677,8 +677,8 @@ function randomColors() {
 function randomParams() {
   cnv.seed.base = (R() * rmax) | 0;
   cnv.ratio = R() < 0.5 ? '1:1' : Object.keys(RATIOS)[(R() * 11) | 0];
-  cnv.blend = R() < 0.5 ? (R() < 0.5 ? 'BLEND' : 'SOFT_LIGHT') : Object.values({ ...BLEND_OPS })[0];
-  const bl = Object.keys(BLEND_OPS); cnv.blend = R() < 0.5 ? cnv.blend : bl[(R() * bl.length) | 0];
+  const bl = Object.keys(BLEND_OPS);
+  cnv.blend = R() < 0.5 ? (R() < 0.5 ? 'BLEND' : 'SOFT_LIGHT') : bl[(R() * bl.length) | 0];
   randomCount(); randomSize(); randomOffset(); randomAngle(); randomBlur(); randomBlend(); randomColors();
 }
 

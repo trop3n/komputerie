@@ -12,6 +12,8 @@ Ksawery is a collection of browser-based visual/creative tools. There is **no bu
 The root `index.html` is the antlii-stack landing page; `classic.html` is the preserved legacy landing.
 
 > Background: `antlii-spec.md`, `antlii-tool-specs.md`, and `antlii-recreation-plan.md` document the audit of the live antlii.work site and the recreation plan. The recreation goal is functional homage — original code/presets/copy, not asset/branding copies.
+>
+> **`Handoff.md` is the active working doc** for the faithful-recreation effort (one tool per session): it holds the IP posture, the "read antlii's real open source at `antlii.github.io/<slug>/`" method, a shared-module API table, and a per-tool progress tracker + session log — update it when you finish a tool. `AGENTS.md` is a condensed pointer to this file for other agents.
 
 ## Development
 
@@ -46,10 +48,10 @@ Each tool is `tools/<name>/index.html` + `tools/<name>/<name>.js`. The HTML load
 - **`shell.js`** — `createTool({ name, version, backHref })` → `{ root, pane, pages: {main, export, options}, canvasHost, startSketch(factory), mountCanvas(), getCanvas(), toggleFullscreen() }`. Builds a floating Tweakpane panel (tabs `MAIN / EXPORT / OPTIONS`) over a full-bleed canvas. `startSketch(fn)` runs a p5 instance-mode sketch in `canvasHost`; `mountCanvas()` returns a bare `<canvas>` for Paper.js tools. Fullscreen on the `f` key.
 - **`presets.js`** — `attachPresets(page, { pane, params, presets, randomize?, onApply? })`. Named-preset dropdown + Restart + Randomize + JSON import/export. Presets and files operate on the plain `params` object; call `pane.refresh()` after mutating it (handled internally).
 - **`export.js`** — `attachExport(page, { getCanvas, getSVG?, name })`. PNG (multi-res), SVG (if `getSVG`), **video** (MediaRecorder WebM / native MP4 / vendored-ffmpeg WebM→MP4 transcode; fps + bitrate + auto-stop), and **PNG/WebP frame-sequence zip**. Every tool gets all of it for free.
-- **`noise.js`** — `seedNoise(seed)`, `noise2D(x,y)`, `noise3D(x,y,z)` (seedable simplex).
+- **`noise.js`** — `alea(seed)`→seeded RNG, `seedNoise(seed)`, `noise2D(x,y)`, `noise3D(x,y,z)`, `noise4D(x,y,z,w)` (4D = looped motion: animate 2 dims). Wraps vendored `js/vendor/simplex/simplex-noise.js`.
 - **`typography.js`** — `FONT_OPTIONS`, `loadFont(name)`→Promise (built-in Google TTFs via CDN), `parseFont(arrayBuffer)` (dropped fonts), `textUnits(font, text, fontSize, mode)`→array of SVG path-data strings (`mode`: letters/words/block).
 - **`shapes.js`** — `SHAPE_OPTIONS`, `makeShape(type, size)` → a Paper.js item centered at origin.
-- **`palette.js`** — `interpolateHex(a, b, t)`, `pickColor(colors, mode, i, n)` (solid/sequence/transition).
+- **`palette.js`** — color modes (solid/sequence/transition) + curated palettes + a swatch/Random/Shuffle UI. `interpolateHex(a,b,t)`, `pickColor(colors,mode,i,n)`, `PALETTES`, `randomPalette(rng?)`, `buildLayers(colors,layers,rng?)`, `toTransitionStops(colors)`, `paletteLerp(stops,t)`, `attachPaletteControls(folder, { palette, pane, onChange })`.
 - **`previews.js`** — `initPreviews()` drives the landing-page `canvas[data-preview]` thumbnails (separate from the legacy `js/previews.js`).
 
 ### Per-type tool pattern
@@ -72,6 +74,7 @@ Original two-file pattern: `tools/<name>/index.html` (sidebar controls + canvas,
 
 - `MediaSource` — `.drawable`, `.ready`, `.width`, `.height`, `.type` (`camera|screen|video|image`); async `useCamera()/useScreen()/useVideo(file)/useImage(file)/stop()`.
 - `createSourceSelector(container, { transition })` → `{ mediaSource, onChange(cb) }` — builds source UI + default gradient sample; `transition` fades a DOM element on source change.
+- `js/color.js` — `parseColor(value)`, a CSS-color parser that reuses one 1×1 canvas + caches the last input (zero-allocation for high-frequency range-input renders).
 
 Conventions: sidebar (`.tool-sidebar`, 280px) on the left, canvas fills the rest; fullscreen via `.tool-layout.fullscreen`; Save PNG via `canvas.toBlob`; `← Tools` back link. Standalone (no media source): cellular-automata, srt2video. (`js/previews.js` drives the `classic.html` thumbnails.)
 

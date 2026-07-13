@@ -14,7 +14,7 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
     const canvas = getCanvas();
     if (!canvas) return;
     const out = opts.scale === 1 ? canvas : upscale(canvas, opts.scale);
-    out.toBlob((blob) => download(blob, `${name}.png`), 'image/png');
+    out.toBlob((blob) => { if (blob) download(blob, `${name}.png`); }, 'image/png');
   });
 
   if (getSVG) {

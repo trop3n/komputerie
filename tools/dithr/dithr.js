@@ -328,7 +328,7 @@ let gImg = null, dithBuffer = null, gradBuffer = null;
 let dTexture = null, gTexture = null, asciiTexture = null;
 let ditherShader = null, halftoneShader = null, cmykShader = null, gradientShader = null, asciiShader = null, dithPassShader = null, gradPassShader = null;
 let asciiFont = null, userImage = null;
-const ASCII_FONT_URL = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/silkscreen/Silkscreen-Regular.ttf';
+const ASCII_FONT_URL = 'https://cdn.jsdelivr.net/gh/google/fonts@ec0464b978de222073645d6d3366f3fdf03376d8/ofl/silkscreen/Silkscreen-Regular.ttf';
 
 const hexToShader = (hex) => [parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255];
 

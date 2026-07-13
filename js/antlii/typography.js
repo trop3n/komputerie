@@ -3,7 +3,9 @@
 // using opentype.js (window.opentype, loaded by the host page), and converts text
 // into SVG path-data strings that Paper.js can import as vector outlines.
 
-const GH = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl';
+// Pinned to a google/fonts commit so a compromised/hijacked `main` can't swap the
+// bytes parsed by opentype.js. Bump deliberately and re-pin.
+const GH = 'https://cdn.jsdelivr.net/gh/google/fonts@ec0464b978de222073645d6d3366f3fdf03376d8/ofl';
 const FONTS = {
   'Space Mono': `${GH}/spacemono/SpaceMono-Regular.ttf`,
   'Anton': `${GH}/anton/Anton-Regular.ttf`,

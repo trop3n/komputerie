@@ -1,7 +1,10 @@
 export const MIME_TYPE_JAVASCRIPT = "text/javascript";
 export const MIME_TYPE_WASM = "application/wasm";
 export const CORE_VERSION = "0.12.6";
-export const CORE_URL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/umd/ffmpeg-core.js`;
+// Neutralized upstream default: export.js always passes a same-origin coreURL
+// to FFmpeg.load(), so CORE_URL is unreachable in normal use. Set to "" so a
+// future regression can't silently fetch an unpinned core from a third party.
+export const CORE_URL = "";
 export var FFMessageType;
 (function (FFMessageType) {
     FFMessageType["LOAD"] = "LOAD";

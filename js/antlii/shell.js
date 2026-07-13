@@ -56,7 +56,9 @@ export function createTool({ name, version = '0.1', backHref = '../../' }) {
     else document.exitFullscreen?.();
   }
   document.addEventListener('keydown', (e) => {
-    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    const t = e.target;
+    const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t && t.isContentEditable);
     if (e.key === 'f' && !typing) toggleFullscreen();
   });
 
