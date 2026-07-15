@@ -67,11 +67,18 @@ export function createTool({ name, version = '0.1', backHref = '../../' }) {
 
 // Dev hooks (window.__<name>) are useful for A/B-driving a tool against its
 // live antlii.work counterpart, but pollute the global namespace in production.
-// `exposeDebug(name, obj)` only attaches when the URL has `?debug` — so the
-// hook remains discoverable for power users (open /tools/flake/?debug) without
-// being visible by default.
+// `exposeDebug(name, obj)` attaches `window.__<name>` only when the URL has
+// `?debug` AND the page is served from a local dev origin (localhost / 127.0.0.1
+// / *.local) — so the hook stays available during development but is inert on a
+// public deployment (e.g. Vercel). Power users can still reach it on localhost.
+const isDevOrigin = () => {
+  try {
+    const h = location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local');
+  } catch { return false; }
+};
 export const isDebug = () => {
-  try { return new URLSearchParams(location.search).has('debug'); }
+  try { return isDevOrigin() && new URLSearchParams(location.search).has('debug'); }
   catch { return false; }
 };
 export function exposeDebug(name, obj) {
