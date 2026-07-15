@@ -2,7 +2,7 @@
 // (MAIN / EXPORT / OPTIONS tabs) over a full-bleed p5 canvas. Reused by every
 // tool built on the new stack. p5 is loaded as a global (window.p5) by the
 // host page; Tweakpane is imported as an ES module.
-import { Pane } from 'tweakpane';
+import { Pane } from '../vendor/tweakpane/tweakpane.min.js';
 
 export function createTool({ name, version = '0.1', backHref = '../../' }) {
   const root = document.createElement('div');

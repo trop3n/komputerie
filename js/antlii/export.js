@@ -92,7 +92,7 @@ export function attachExport(page, { getCanvas, getSVG, name = 'export' }) {
     exporting = true; cancel = false; fr.status = 'loading zip…'; frStatus.refresh();
     frBtn.title = 'Cancel Export';
     try {
-      const { default: JSZip } = await import('https://esm.sh/jszip@3.10.1');
+      const JSZip = await loadJSZip();
       const zip = new JSZip();
       const type = fr.format === 'webp' ? 'image/webp' : 'image/png';
       for (let i = 0; i < fr.frames; i++) {
@@ -122,6 +122,22 @@ function pickVideoMime(preferMp4) {
   const order = preferMp4 ? [...mp4, ...webm] : [...webm, ...mp4];
   for (const m of order) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) { /* ignore */ } }
   return null;
+}
+
+// Vendored JSZip (UMD build) — lazy-loaded via a dynamic same-origin <script> so
+// it's only fetched on first frame-sequence export. Attaches to window.JSZip.
+let _jszipPromise = null;
+function loadJSZip() {
+  if (_jszipPromise) return _jszipPromise;
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  _jszipPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = new URL('../vendor/jszip/jszip.min.js', import.meta.url).href;
+    s.onload = () => (window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip did not initialize')));
+    s.onerror = () => { _jszipPromise = null; reject(new Error('JSZip load failed')); };
+    document.head.appendChild(s);
+  });
+  return _jszipPromise;
 }
 
 // ---- Vendored ffmpeg.wasm (same-origin → module worker + ESM core load with no
