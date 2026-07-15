@@ -1,0 +1,101 @@
+# Ksawery
+
+A suite of browser-based generative/visual tools — vector, type, shader, 3D, and
+image-manipulation instruments that run entirely client-side. No build step, no
+backend, no account: serve the folder and open it.
+
+## Run
+
+Any static HTTP server works (ES modules + the vendored libs need same-origin):
+
+```
+python3 -m http.server 8000
+```
+
+Then open:
+- `http://localhost:8000/` — the **antlii-stack** suite (the current focus, 16 tools)
+- `http://localhost:8000/classic.html` — the **legacy** raster tools (16 earlier experiments)
+
+Or navigate directly to `tools/<name>/`.
+
+> After editing a shared module under `js/antlii/`, hard-refresh (Ctrl/Cmd+Shift+R)
+> or use a fresh tab — `http.server` sends no cache headers, so browsers may serve
+> a stale copy of the shared JS.
+
+## The tools
+
+### antlii-stack (16) — `index.html`
+A personal homage to the [antlii.work](https://antlii.work) toolset by Anatolii
+Babii — original implementations inspired by his generative instruments, rebuilt
+from scratch. Not affiliated with or endorsed by the original author.
+
+| Tool | What it does |
+|---|---|
+| **FLAKE** | Generative symmetrical vector tile patterns with noise, swirl & masks |
+| **SPLITX** | Vector shapes mirrored across a split canvas into kaleidoscopes |
+| **BLUUR** | A blurred grid of soft forms fused through blend modes & procedural palettes |
+| **TEXTR** | Kinetic typography — repeated text in count-diamonds with sine & noise waves |
+| **SAMPL** | Geometric shapes sampled along glyph outlines |
+| **RASTR** | Text rasterized into a kinetic geometric shape grid |
+| **RITM** | Abstract waveform graphics from simplex noise & generative palettes |
+| **REFRACT** | Image displacement & grid refraction via GLSL shaders |
+| **DITHR** | Dithering — lit 3D forms & media through ordered / halftone / CMYK / ASCII shaders, palette-mapped |
+| **PLAIN** | Dynamic low-poly 3D plane meshes from simplex noise |
+| **BIOM** | Organic blooms — orbiting forms stamped into concentric gradient rings |
+| **DRIFT** | Sample fragments of an image and let them drift, smear & spin |
+| **KLON** | Grid-snapped clone stamp — collage image fragments by rect / ellipse / triangle |
+| **SKAAAN** | Scan-line displacement glitch — shift / scale / rotate / noise an image as a line sweeps it |
+| **STIIL** | Abstract graphics from images via stacked artistic effects |
+| **BOIDS** | Flocking simulation with shape, skew & velocity color |
+
+### legacy (16) — `classic.html`
+The original vanilla-Canvas/WebGL experiments: dithering, cellular-automata,
+gradient-map, shapes, text, pixel-flow, pixelator, srt2video, video2midi,
+flipdigits, blob-tracker, boids, rhythm, flake, refract, mesher. Preserved as-is.
+
+## Tech & architecture
+
+- **No build system** — files are served as-is. Libraries load per-page via global
+  `<script>` tags or ES-module imports.
+- **Stack:** [p5.js](https://p5js.org) · [Paper.js](http://paperjs.org) ·
+  [opentype.js](https://opentype.js.org) · [Tweakpane](https://cocopon.github.io/tweakpane/).
+- **Vendored (same-origin, under `js/vendor/`):** Paper.js (patched for CSP — see
+  below), Tweakpane, JSZip, simplex-noise, and ffmpeg.wasm (single-threaded core,
+  for WebM→MP4 transcode). The only remaining CDN dependencies are **p5.js** and
+  **opentype.js** (jsdelivr), both SRI-pinned.
+- **Shared shell** (`js/antlii/`): `shell.js` (`createTool` — floating Tweakpane
+  panel over a full-bleed canvas), `export.js` (PNG/SVG/video/frame-zip),
+  `presets.js`, `palette.js`, `noise.js` (seedable 2D/3D/4D simplex), `typography.js`,
+  `shapes.js`, `previews.js`. Each tool is a thin `tools/<name>/<name>.js` on top.
+- **Legacy tools** reuse `js/media-source.js` (camera/screen/video/image input) and
+  `css/style.css`.
+
+## Browser support
+
+- A modern Chromium/Firefox/Safari. **REFRACT, PLAIN, and DITHR need WebGL** (a
+  real GPU, not all headless setups).
+- Every page ships a strict **Content-Security-Policy** and **Subresource
+  Integrity** on the CDN scripts. Because Paper.js's PaperScript compiler calls
+  `new Function` at load, the vendored copy is patched to degrade gracefully under
+  the no-`unsafe-eval` CSP (PaperScript compilation is disabled; all tools use the
+  Paper object API, so nothing is lost).
+- Export: PNG (multi-res), SVG (vector tools), video (MediaRecorder WebM / native
+  MP4 / in-browser ffmpeg.wasm transcode), and PNG/WebP frame-sequence zip.
+
+## Homage & IP posture
+
+The antlii-stack tools are **functional homages** — reimplementations of
+*behaviour* (algorithms, parameter taxonomy, defaults, interaction model) in our
+own code. They deliberately do **not** copy the original's preset names, curated
+palettes, bespoke shape art, branding, or watermark/license scripts. The
+recreation method and per-tool progress are documented in `Handoff.md`;
+`CLAUDE.md` and `AGENTS.md` describe the architecture for contributors.
+
+## Credits
+
+Built by the repo author. Third-party libraries (all MIT/permissive): p5.js,
+Paper.js, opentype.js, Tweakpane, JSZip, simplex-noise (Jonas Wagner),
+ffmpeg.wasm. The boids flocking math in **BOIDS** is adapted from Daniel Huang's
+MIT-licensed implementation. DITHR's dither shaders incorporate third-party
+open-source routines (ordered-dither, CMYK halftone, ASCII) kept verbatim with
+attribution in `tools/dithr/dithr.js`.

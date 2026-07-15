@@ -315,7 +315,8 @@ function buildPaletteArray() {
     for (let i = 0; i < len; i++) out.array.push(arr[i % arr.length]);
   } else if (sample.fill.type === 'transition') {
     const len = round(arr.length * (1 + 24 * palette.mult));
-    for (let i = 0; i < len; i++) out.array.push([arr[i % arr.length], i / (len - 1)]);
+    const denom = Math.max(1, len - 1);
+    for (let i = 0; i < len; i++) out.array.push([arr[i % arr.length], i / denom]);
   }
   return out;
 }

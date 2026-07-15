@@ -216,8 +216,8 @@ class Form {
       case 'none': _moveX = 0; break;
       case 'const': _moveX = mx_.frame * mx_.geom.trend; mx_.frame += mx_.const.rate; break;
       case 'noise': { const nv = mx_.noise.rate / mx_.noise.factor; _moveX = mx_.simplex(mx_.frame * nv, 0) * mx_.noise.level; mx_.frame++; break; }
-      case 'sin': { const sv = round(mx_.geom.level / (mx_.geom.rate * this.factor.width)); const sf = mx_.frame / sv; _moveX = map(sin(TWO_PI * sf), 1, -1, mx_.geom.level, -mx_.geom.level) * mx_.geom.trend; sf === 1 ? (mx_.frame = 1) : mx_.frame++; break; }
-      case 'cos': { const cv = round(mx_.geom.level / (mx_.geom.rate * this.factor.width)); const cf = mx_.frame / cv; _moveX = map(1 - cos(TWO_PI * cf), 1, -1, mx_.geom.level, -mx_.geom.level) * mx_.geom.trend; cf === 1 ? (mx_.frame = 1) : mx_.frame++; break; }
+      case 'sin': { const sv = max(1, round(mx_.geom.level / (mx_.geom.rate * this.factor.width))); const sf = mx_.frame / sv; _moveX = map(sin(TWO_PI * sf), 1, -1, mx_.geom.level, -mx_.geom.level) * mx_.geom.trend; sf === 1 ? (mx_.frame = 1) : mx_.frame++; break; }
+      case 'cos': { const cv = max(1, round(mx_.geom.level / (mx_.geom.rate * this.factor.width))); const cf = mx_.frame / cv; _moveX = map(1 - cos(TWO_PI * cf), 1, -1, mx_.geom.level, -mx_.geom.level) * mx_.geom.trend; cf === 1 ? (mx_.frame = 1) : mx_.frame++; break; }
     }
     // move y
     const my_ = this.move.y;
@@ -225,24 +225,24 @@ class Form {
       case 'none': _moveY = 0; break;
       case 'const': _moveY = my_.frame * my_.geom.trend; my_.frame += my_.const.rate; break;
       case 'noise': { const nv = my_.noise.rate / my_.noise.factor; _moveY = my_.simplex(my_.frame * nv, 0) * my_.noise.level; my_.frame++; break; }
-      case 'sin': { const sv = round(my_.geom.level / (my_.geom.rate * this.factor.height)); const sf = my_.frame / sv; _moveY = map(sin(TWO_PI * sf), 1, -1, my_.geom.level, -my_.geom.level) * my_.geom.trend; sf === 1 ? (my_.frame = 1) : my_.frame++; break; }
-      case 'cos': { const cv = round(my_.geom.level / (my_.geom.rate * this.factor.height)); const cf = my_.frame / cv; _moveY = map(1 - cos(TWO_PI * cf), 1, -1, my_.geom.level, -my_.geom.level) * my_.geom.trend; cf === 1 ? (my_.frame = 1) : my_.frame++; break; }
+      case 'sin': { const sv = max(1, round(my_.geom.level / (my_.geom.rate * this.factor.height))); const sf = my_.frame / sv; _moveY = map(sin(TWO_PI * sf), 1, -1, my_.geom.level, -my_.geom.level) * my_.geom.trend; sf === 1 ? (my_.frame = 1) : my_.frame++; break; }
+      case 'cos': { const cv = max(1, round(my_.geom.level / (my_.geom.rate * this.factor.height))); const cf = my_.frame / cv; _moveY = map(1 - cos(TWO_PI * cf), 1, -1, my_.geom.level, -my_.geom.level) * my_.geom.trend; cf === 1 ? (my_.frame = 1) : my_.frame++; break; }
     }
     // offset x
     const ox = this.offset.x;
     switch (ox.type) {
       case 'none': _offsetX = 0; break;
       case 'noise': { const nv = ox.noise.rate / ox.noise.factor; _offsetX = ox.simplex(ox.frame * nv, 0) * ox.noise.level; ox.frame++; break; }
-      case 'sin': { const sv = round(ox.geom.level / (ox.geom.rate * this.factor.width)); const sf = ox.frame / sv; _offsetX = map(sin(TWO_PI * sf), 1, -1, ox.geom.level, -ox.geom.level) * ox.geom.trend; sf === 1 ? (ox.frame = 0) : ox.frame++; break; }
-      case 'cos': { const cv = round(ox.geom.level / (ox.geom.rate * this.factor.width)); const cf = ox.frame / cv; _offsetX = map(1 - cos(TWO_PI * cf), 1, -1, ox.geom.level, -ox.geom.level) * ox.geom.trend; cf === 1 ? (ox.frame = 0) : ox.frame++; break; }
+      case 'sin': { const sv = max(1, round(ox.geom.level / (ox.geom.rate * this.factor.width))); const sf = ox.frame / sv; _offsetX = map(sin(TWO_PI * sf), 1, -1, ox.geom.level, -ox.geom.level) * ox.geom.trend; sf === 1 ? (ox.frame = 0) : ox.frame++; break; }
+      case 'cos': { const cv = max(1, round(ox.geom.level / (ox.geom.rate * this.factor.width))); const cf = ox.frame / cv; _offsetX = map(1 - cos(TWO_PI * cf), 1, -1, ox.geom.level, -ox.geom.level) * ox.geom.trend; cf === 1 ? (ox.frame = 0) : ox.frame++; break; }
     }
     // offset y
     const oy = this.offset.y;
     switch (oy.type) {
       case 'none': _offsetY = 0; break;
       case 'noise': { const nv = oy.noise.rate / oy.noise.factor; _offsetY = oy.simplex(oy.frame * nv, 0) * oy.noise.level; oy.frame++; break; }
-      case 'sin': { const sv = round(oy.geom.level / (oy.geom.rate * this.factor.height)); const sf = oy.frame / sv; _offsetY = map(sin(TWO_PI * sf), 1, -1, oy.geom.level, -oy.geom.level) * oy.geom.trend; sf === 1 ? (oy.frame = 0) : oy.frame++; break; }
-      case 'cos': { const cv = round(oy.geom.level / (oy.geom.rate * this.factor.height)); const cf = oy.frame / cv; _offsetY = map(1 - cos(TWO_PI * cf), 1, -1, oy.geom.level, -oy.geom.level) * oy.geom.trend; cf === 1 ? (oy.frame = 0) : oy.frame++; break; }
+      case 'sin': { const sv = max(1, round(oy.geom.level / (oy.geom.rate * this.factor.height))); const sf = oy.frame / sv; _offsetY = map(sin(TWO_PI * sf), 1, -1, oy.geom.level, -oy.geom.level) * oy.geom.trend; sf === 1 ? (oy.frame = 0) : oy.frame++; break; }
+      case 'cos': { const cv = max(1, round(oy.geom.level / (oy.geom.rate * this.factor.height))); const cf = oy.frame / cv; _offsetY = map(1 - cos(TWO_PI * cf), 1, -1, oy.geom.level, -oy.geom.level) * oy.geom.trend; cf === 1 ? (oy.frame = 0) : oy.frame++; break; }
     }
     // rotate
     const r = this.rotate;

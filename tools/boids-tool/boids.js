@@ -364,10 +364,10 @@ function syncGlobals() {
   g.skewReaction = params.skew.reaction;
   g.renderMode = `${params.render}Render`;
   g.fillStyle = `${params.fill.style}Color`;
-  g.fillColors = [P.color(params.fill[0]), P.color(params.fill[1])];
+  if (g._fillKey !== params.fill[0] + '|' + params.fill[1]) { g._fillKey = params.fill[0] + '|' + params.fill[1]; g.fillColors = [P.color(params.fill[0]), P.color(params.fill[1])]; }
   g.fillReaction = params.fill.reaction;
   g.strokeStyle = `${params.stroke.style}Color`;
-  g.strokeColors = [P.color(params.stroke[0]), P.color(params.stroke[1])];
+  if (g._strokeKey !== params.stroke[0] + '|' + params.stroke[1]) { g._strokeKey = params.stroke[0] + '|' + params.stroke[1]; g.strokeColors = [P.color(params.stroke[0]), P.color(params.stroke[1])]; }
   g.strokeReaction = params.stroke.reaction;
   g.strokeWeight = params.stroke.width.value;
 
