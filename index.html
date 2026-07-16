@@ -15,7 +15,6 @@
     <nav class="index-nav">
       <a href="./" class="index-nav-brand">KSAWERY</a>
       <div class="index-nav-links">
-        <a href="#about">ABOUT</a>
         <a href="classic.html">CLASSIC</a>
       </div>
     </nav>
@@ -137,15 +136,97 @@
         </div>
       </a>
     </div>
-    <section id="about" class="index-about">
-      <h2>About</h2>
-      <p>A personal homage recreation of the <a href="https://antlii.work" target="_blank" rel="noopener">antlii.work</a> toolset by Anatolii Babii — original implementations inspired by his generative instruments, rebuilt from scratch on p5.js, Paper.js, opentype.js and Tweakpane. Not affiliated with or endorsed by the original author.</p>
-      <p>Earlier raster experiments live in the <a href="classic.html">classic tools</a> archive.</p>
-    </section>
+    <header class="index-header">
+      <h2>Classic Tools</h2>
+      <p>earlier raster experiments — also on the <a href="classic.html">classic page</a></p>
+    </header>
+    <div class="tools-grid">
+      <a href="tools/dithering/" class="tool-card" style="animation-delay:.85s">
+        <canvas data-preview="dithering"></canvas>
+        <div class="tool-card-info">
+          <h2>Dithering</h2>
+          <p>Real-time dithering with custom color palettes and adjustments</p>
+        </div>
+      </a>
+      <a href="tools/cellular-automata/" class="tool-card" style="animation-delay:.9s">
+        <canvas data-preview="cellular-automata"></canvas>
+        <div class="tool-card-info">
+          <h2>Cellular Automata</h2>
+          <p>Interactive automata with multiple rules, brushes, and effects</p>
+        </div>
+      </a>
+      <a href="tools/gradient-map/" class="tool-card" style="animation-delay:.95s">
+        <canvas data-preview="gradient-map"></canvas>
+        <div class="tool-card-info">
+          <h2>Gradient Map</h2>
+          <p>Map image luminance to custom color gradients</p>
+        </div>
+      </a>
+      <a href="tools/shapes/" class="tool-card" style="animation-delay:1s">
+        <canvas data-preview="shapes"></canvas>
+        <div class="tool-card-info">
+          <h2>Shapes</h2>
+          <p>Render media as grids of geometric shapes driven by luminance</p>
+        </div>
+      </a>
+      <a href="tools/text/" class="tool-card" style="animation-delay:1.05s">
+        <canvas data-preview="text"></canvas>
+        <div class="tool-card-info">
+          <h2>Text</h2>
+          <p>Render images through text characters with glitch effects</p>
+        </div>
+      </a>
+      <a href="tools/pixel-flow/" class="tool-card" style="animation-delay:1.1s">
+        <canvas data-preview="pixel-flow"></canvas>
+        <div class="tool-card-info">
+          <h2>Pixel Flow</h2>
+          <p>Particle flow visualization driven by image luminance</p>
+        </div>
+      </a>
+      <a href="tools/pixelator/" class="tool-card" style="animation-delay:1.15s">
+        <canvas data-preview="pixelator"></canvas>
+        <div class="tool-card-info">
+          <h2>Pixelator</h2>
+          <p>Pixelation with multiple styles — squares, circles, diamonds, ASCII</p>
+        </div>
+      </a>
+      <a href="tools/srt2video/" class="tool-card" style="animation-delay:1.2s">
+        <canvas data-preview="srt2video"></canvas>
+        <div class="tool-card-info">
+          <h2>SRT to Video</h2>
+          <p>Visualize subtitle files as timed text sequences</p>
+        </div>
+      </a>
+      <a href="tools/video2midi/" class="tool-card" style="animation-delay:1.25s">
+        <canvas data-preview="video2midi"></canvas>
+        <div class="tool-card-info">
+          <h2>Video to MIDI</h2>
+          <p>Convert video brightness to MIDI notes with scale quantization</p>
+        </div>
+      </a>
+      <a href="tools/flipdigits/" class="tool-card" style="animation-delay:1.3s">
+        <canvas data-preview="flipdigits"></canvas>
+        <div class="tool-card-info">
+          <h2>Flipdigits Player</h2>
+          <p>Simulated flip-dot displays with animated transitions</p>
+        </div>
+      </a>
+      <a href="tools/blob-tracker/" class="tool-card" style="animation-delay:1.35s">
+        <canvas data-preview="blob-tracker"></canvas>
+        <div class="tool-card-info">
+          <h2>Blob Tracker</h2>
+          <p>Real-time blob detection and tracking from video and camera input</p>
+        </div>
+      </a>
+      <a href="tools/mesher/" class="tool-card" style="animation-delay:1.4s">
+        <canvas data-preview="mesher"></canvas>
+        <div class="tool-card-info">
+          <h2>Mesher</h2>
+          <p>Projection mapping with quad warp and bezier mesh surfaces</p>
+        </div>
+      </a>
+    </div>
   </div>
-  <script type="module">
-    import { initPreviews } from './js/antlii/previews.js';
-    initPreviews();
-  </script>
+  <script type="module" src="./js/index-previews.js"></script>
 </body>
 </html>
