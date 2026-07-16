@@ -3,3 +3,12 @@ node_modules/
 Thumbs.db
 *.log
 .playwright-mcp/
+
+# Internal docs (agent handoff / architecture / antlii specs) — kept locally, not
+# for the public or deployed repo.
+Handoff.md
+CLAUDE.md
+AGENTS.md
+antlii-recreation-plan.md
+antlii-spec.md
+antlii-tool-specs.md
