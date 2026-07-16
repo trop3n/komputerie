@@ -7,9 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Ksawery is a collection of browser-based visual/creative tools. There is **no build system, bundler, or transpiler** — files are served as-is. Two families of tools live side by side:
 
 1. **antlii-stack tools** (the current focus) — a recreation/homage of the antlii.work generative toolset (artist Anatolii Babii), built on **p5.js + Tweakpane + Paper.js + opentype.js**, with a shared shell in `js/antlii/`. 16 tools.
-2. **Legacy raster tools** — the original vanilla-Canvas/WebGL tools, untouched. 16 tools. Still work; intentionally preserved.
+2. **Legacy raster tools** — the original vanilla-Canvas/WebGL tools, untouched. 12 tools (the four superseded by antlii recreations — flake, refract, boids, rhythm — were deleted). Intentionally preserved.
 
-The root `index.html` is the antlii-stack landing page; `classic.html` is the preserved legacy landing.
+The root `index.html` is the single landing page: the antlii grid plus a Classic Tools section listing the legacy tools.
 
 > Background: `antlii-spec.md`, `antlii-tool-specs.md`, and `antlii-recreation-plan.md` document the audit of the live antlii.work site and the recreation plan. The recreation goal is functional homage — original code/presets/copy, not asset/branding copies.
 >
@@ -23,7 +23,7 @@ Serve the project root with any static HTTP server (ES modules + the vendored ff
 python3 -m http.server 8000
 ```
 
-Open `index.html` (antlii suite) or `classic.html` (legacy), or navigate directly to `tools/<name>/`.
+Open `index.html`, or navigate directly to `tools/<name>/`.
 
 There are no tests, linters, or build steps — **verify changes by opening the tool in a browser** (watch the console; screenshot the canvas).
 
@@ -34,7 +34,7 @@ There are no tests, linters, or build steps — **verify changes by opening the 
 ## Architecture A — antlii-stack tools (current)
 
 ### Layout
-Each tool is `tools/<name>/index.html` + `tools/<name>/<name>.js`. The HTML loads the libraries the tool needs and the module; the module builds the tool on the shared shell. Where a name collides with a legacy dir, the antlii tool uses a `-tool` suffix (`flake-tool`, `refract-tool`, `boids-tool`).
+Each tool is `tools/<name>/index.html` + `tools/<name>/<name>.js`. The HTML loads the libraries the tool needs and the module; the module builds the tool on the shared shell. Three tools carry a `-tool` suffix (`flake-tool`, `refract-tool`, `boids-tool`) — an artifact of since-deleted same-named legacy dirs, kept for URL stability.
 
 ### Libraries (loaded per page; no bundler)
 - **Tweakpane** (control panel) — ESM via import map: `<script type="importmap">{ "imports": { "tweakpane": "https://esm.sh/tweakpane@4.0.5" } }</script>`, then `import { Pane } from 'tweakpane'`.
@@ -64,7 +64,7 @@ Each tool is `tools/<name>/index.html` + `tools/<name>/<name>.js`. The HTML load
 - **Render cadence:** animated tools rebuild every frame; static/on-change tools use a `dirty` flag set via `tool.pane.on('change', () => dirty = true)`.
 
 ### Landing
-`index.html` — antlii grid (`tool-card` + `canvas[data-preview]`), an About note (credits the original, states non-affiliation), and a link to `classic.html`. Driven by `js/antlii/previews.js`.
+`index.html` — antlii grid + Classic Tools grid (`tool-card` + `canvas[data-preview]`). Driven by `js/index-previews.js`, which runs both preview modules (`js/antlii/previews.js` + legacy `js/previews.js`; their key sets are disjoint).
 
 ---
 
@@ -76,7 +76,7 @@ Original two-file pattern: `tools/<name>/index.html` (sidebar controls + canvas,
 - `createSourceSelector(container, { transition })` → `{ mediaSource, onChange(cb) }` — builds source UI + default gradient sample; `transition` fades a DOM element on source change.
 - `js/color.js` — `parseColor(value)`, a CSS-color parser that reuses one 1×1 canvas + caches the last input (zero-allocation for high-frequency range-input renders).
 
-Conventions: sidebar (`.tool-sidebar`, 280px) on the left, canvas fills the rest; fullscreen via `.tool-layout.fullscreen`; Save PNG via `canvas.toBlob`; `← Tools` back link. Standalone (no media source): cellular-automata, srt2video. (`js/previews.js` drives the `classic.html` thumbnails.)
+Conventions: sidebar (`.tool-sidebar`, 280px) on the left, canvas fills the rest; fullscreen via `.tool-layout.fullscreen`; Save PNG via `canvas.toBlob`; `← Tools` back link. Standalone (no media source): cellular-automata, srt2video. (`js/previews.js` supplies the legacy thumbnails on the main page via `js/index-previews.js`.)
 
 ---
 
@@ -90,7 +90,7 @@ Single stylesheet for everything. CSS variables (`:root`): `--bg`, `--surface`, 
 
 **antlii-stack (16):** FLAKE `flake-tool`, SPLITX `splitx`, BLUUR `bluur`, TEXTR `textr`, SAMPL `sampl`, RASTR `rastr`, RITM `ritm`, REFRACT `refract-tool`, DITHR `dithr`, PLAIN `plain`, BIOM `biom`, DRIFT `drift`, KLON `klon`, SKAAAN `skaaan`, STIIL `stiil`, BOIDS `boids-tool`.
 
-**Legacy (16):** blob-tracker, boids, cellular-automata, dithering, flake, flipdigits, gradient-map, mesher, pixel-flow, pixelator, refract, rhythm, shapes, srt2video, text, video2midi.
+**Legacy (12):** blob-tracker, cellular-automata, dithering, flipdigits, gradient-map, mesher, pixel-flow, pixelator, shapes, srt2video, text, video2midi.
 
 ## Adding an antlii-stack tool
 

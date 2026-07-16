@@ -11,7 +11,7 @@ Read `CLAUDE.md` for the full architecture before making changes.
 ## Two tool families
 
 - **antlii-stack** (current work) — `tools/<name>/` built on **p5.js + Tweakpane + Paper.js + opentype.js** via the shared shell in `js/antlii/`. Libraries load per page (Tweakpane through an import map; p5/paper/opentype as global `<script>`s; JSZip via dynamic import; **ffmpeg.wasm vendored** in `js/vendor/ffmpeg/`). Entry: root `index.html`.
-- **Legacy raster** — original vanilla Canvas/WebGL tools importing `js/media-source.js`, sidebar+canvas layout. Untouched, preserved. Entry: `classic.html`.
+- **Legacy raster** — original vanilla Canvas/WebGL tools importing `js/media-source.js`, sidebar+canvas layout. Untouched, preserved. Listed in the Classic Tools section of the root `index.html`.
 
 ## Key constraints
 

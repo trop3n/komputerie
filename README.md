@@ -12,11 +12,9 @@ Any static HTTP server works (ES modules + the vendored libs need same-origin):
 python3 -m http.server 8000
 ```
 
-Then open:
-- `http://localhost:8000/` — the **antlii-stack** suite (the current focus, 16 tools)
-- `http://localhost:8000/classic.html` — the **legacy** raster tools (16 earlier experiments)
-
-Or navigate directly to `tools/<name>/`.
+Then open `http://localhost:8000/` — the **antlii-stack** suite (the current
+focus, 16 tools) plus the **classic** raster tools (12 earlier experiments), all
+on one page. Or navigate directly to `tools/<name>/`.
 
 > After editing a shared module under `js/antlii/`, hard-refresh (Ctrl/Cmd+Shift+R)
 > or use a fresh tab — `http.server` sends no cache headers, so browsers may serve
@@ -24,7 +22,7 @@ Or navigate directly to `tools/<name>/`.
 
 ## The tools
 
-### antlii-stack (16) — `index.html`
+### antlii-stack (16)
 A personal homage to the [antlii.work](https://antlii.work) toolset by Anatolii
 Babii — original implementations inspired by his generative instruments, rebuilt
 from scratch. Not affiliated with or endorsed by the original author.
@@ -48,10 +46,11 @@ from scratch. Not affiliated with or endorsed by the original author.
 | **STIIL** | Abstract graphics from images via stacked artistic effects |
 | **BOIDS** | Flocking simulation with shape, skew & velocity color |
 
-### legacy (16) — `classic.html`
-The original vanilla-Canvas/WebGL experiments: dithering, cellular-automata,
-gradient-map, shapes, text, pixel-flow, pixelator, srt2video, video2midi,
-flipdigits, blob-tracker, boids, rhythm, flake, refract, mesher. Preserved as-is.
+### classic (12)
+The original vanilla-Canvas/WebGL experiments, in the Classic Tools section of
+the main page: dithering, cellular-automata, gradient-map, shapes, text,
+pixel-flow, pixelator, srt2video, video2midi, flipdigits, blob-tracker, mesher.
+Preserved as-is.
 
 ## Tech & architecture
 
